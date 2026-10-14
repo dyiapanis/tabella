@@ -6,6 +6,11 @@
       "command": "python3",
       "args": ["${PLUGIN_ROOT}/mcp_server.py"],
       "env": {}
+    },
+    "tabella_http": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:8602/mcp",
+      "headers": {}
     }
   }
 }
