@@ -74,11 +74,32 @@ sections, sheets, slides, tables, images, and page breaks.
 
 ### Convert
 
-Format conversion via pandoc + LaTeX:
+Format conversion via pandoc + LaTeX (page size, margins, headers/footers
+configurable). **Pandoc 3.1 supports 44 input and 54 output formats** —
+`doc_convert` passes your `from`/`to` through, so all of them work. The
+everyday set:
 
-- Markdown → PDF/DOCX/HTML/ODT/EPUB
-- Any pandoc-supported format pair
-- Configurable page size, margins, headers/footers
+| Format | In | Out | Notes |
+|---|---|---|---|
+| Markdown (`.md`, variants) | ✅ | ✅ | gfm, commonmark, multimarkdown, strict… |
+| HTML | ✅ | ✅ | html4/html5, chunkedhtml |
+| DOCX (Word) | ✅ | ✅ | |
+| ODT | ✅ | ✅ | + `opendocument` |
+| PDF | ✅ | ✅ | in: text-based PDFs (pandoc's pdf reader); out: needs `pdflatex`/`xelatex` (texlive) — engine auto-selected |
+| LaTeX (`.tex`) | ✅ | ✅ | incl. beamer slides out |
+| RST | ✅ | ✅ | |
+| EPUB | ✅ | ✅ | out: epub2/epub3 |
+| CSV / TSV | ✅ | ✅ | out via markdown/AST route |
+| RTF | ✅ | ✅ | |
+| Plain text (`.txt`) | ✅ | ✅ | |
+| Org-mode, MediaWiki, Jira wiki, Textile, DocBook, FB2, OPML, IPynb, JATS | ✅ | ✅ | writers for most |
+| Typst / man / ms / texinfo / AsciiDoc | ✅ | ✅ | typst in+out |
+| Presentations | — | ✅ | beamer, revealjs, slidy, s5, dzslides (from any reader, Markdown especially) |
+| Pandoc AST (JSON) | ✅ | ✅ | for programmatic pipelines |
+
+Everything not in the table: if `pandoc --list-input-formats` /
+`--list-output-formats` lists it, `doc_convert` accepts it as-is — unknown
+extensions pass through untouched.
 
 ### Read
 
