@@ -42,6 +42,8 @@ def _build_docx(content: dict, output_path: str, template: str = None, options: 
 
         for section in content.get("sections", []):
             stype = section.get("type", "paragraph")
+            if stype == "text":
+                stype = "paragraph"  # "text" is a valid alias; unknown types fall through silently otherwise
             if stype == "heading":
                 doc.add_heading(section.get("text", ""), level=section.get("level", 1))
             elif stype == "paragraph":
@@ -284,6 +286,8 @@ def _build_odt(content: dict, output_path: str, template: str = None, options: d
 
         for section in content.get("sections", []):
             stype = section.get("type", "paragraph")
+            if stype == "text":
+                stype = "paragraph"  # "text" alias, same normalization as _build_docx
             if stype == "heading":
                 h = H(outlinelevel=section.get("level", 1), text=section.get("text", ""))
                 doc.text.addElement(h)
