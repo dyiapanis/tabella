@@ -1,79 +1,28 @@
-"""agent_docs.convert — Document format conversion via pandoc + LaTeX.
+"""documents.convert — Document format conversion via pandoc + LaTeX.
 
 Supports: markdown → PDF/DOCX/HTML/ODT/EPUB and any pandoc-supported format pair.
 Output directory is configurable via DOCS_OUTPUT_DIR (defaults to ~/Documents).
+Merged from the doc_convert plugin.
 """
 
 import json
 import logging
-import os
-import platform
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Optional
 
+from .utils import _get_output_dir, _is_in_output_dir, _resolve_output_dir
+
 logger = logging.getLogger(__name__)
-
-# ── output directory resolution ─
-def _get_output_dir() -> Path:
-    """Resolve output directory for documents."""
-    from agent_docs import get_output_dir
-    return get_output_dir()
-
-
-def _is_in_output_dir(path: Path) -> bool:
-    """Check if path is under the configured output directory."""
-    try:
-        resolved = path.expanduser().resolve()
-        user_dir = _get_output_dir()
-        return resolved != user_dir and user_dir in resolved.parents
-    except Exception:
-        return False
-
-
-def _resolve_output_dir(category: str = None) -> Path:
-    """Return output directory with optional category subfolder."""
-    base = _get_output_dir()
-    if category:
-        out = base / category
-        out.mkdir(parents=True, exist_ok=True)
-        return out
-    return base
-
-
-def _platform_install_hint(pkg: str) -> str:
-    """Return a platform-aware install command for a system package."""
-    import platform
-    import shutil as _sh
-    system = platform.system()
-    if system == "Darwin":
-        return f"brew install {pkg}"
-    elif system == "Linux":
-        if _sh.which("pacman"):
-            return f"sudo pacman -S {pkg}"
-        elif _sh.which("dnf"):
-            return f"sudo dnf install {pkg}"
-        elif _sh.which("apt"):
-            return f"sudo apt install {pkg}"
-        else:
-            return f"install {pkg} via your package manager"
-    else:
-        return f"install {pkg} from https://pandoc.org/installing.html"
 
 
 def _check_deps() -> Optional[str]:
-    """Return error string if pandoc or LaTeX is missing, else None.
-
-    Error messages are platform-aware — they suggest the right package
-    manager command for the current OS.
-    """
+    """Return error string if pandoc or LaTeX is missing, else None."""
     if not shutil.which("pandoc"):
-        hint = _platform_install_hint("pandoc")
-        return f"pandoc is not installed. Install it: `{hint}`"
+        return "pandoc is not installed. Install it (e.g. `sudo apt install pandoc`)."
     if not shutil.which("pdflatex") and not shutil.which("xelatex"):
-        hint = _platform_install_hint("texlive-xetex" if platform.system() != "Darwin" else "basictex")
-        return f"No LaTeX engine found (pdflatex/xelatex). Install texlive: `{hint}`"
+        return "No LaTeX engine found. Install texlive (e.g. `sudo apt install texlive-xetex`)."
     return None
 
 
@@ -133,8 +82,9 @@ def doc_convert(
     # Warn if output is outside the configured output directory
     if not _is_in_output_dir(out_file):
         logger.warning(
-            "doc_convert: output file %s is outside the configured output directory.",
-            output_path,
+            "doc_convert: output file %s is outside the configured output directory. "
+            "Files saved here may not be synced.",
+            out_file,
         )
 
     # Build pandoc command

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent-docs MCP server — stdio Model Context Protocol server.
+"""tabella MCP server — stdio Model Context Protocol server.
 
 Exposes three tools:
   - doc_read:       Read/extract text from any document
@@ -55,19 +55,19 @@ def _ensure_venv() -> str:
     plugin_root = Path(__file__).parent.resolve()
     setup_script = plugin_root / "scripts" / "setup.sh"
     if not setup_script.exists():
-        sys.stderr.write(f"agent-docs: setup script not found at {setup_script}\n")
+        sys.stderr.write(f"tabella: setup script not found at {setup_script}\n")
         return venv_python  # let tool calls fail with a helpful error
 
-    sys.stderr.write("agent-docs: bootstrapping docs venv (first run)...\n")
+    sys.stderr.write("tabella: bootstrapping docs venv (first run)...\n")
     data_dir = str(venv_dir.parent) if plugin_data else str(venv_dir)
     result = subprocess.run(
         ["bash", str(setup_script), data_dir],
         capture_output=True, text=True, timeout=300,
     )
     if result.returncode != 0:
-        sys.stderr.write(f"agent-docs: bootstrap failed: {result.stderr[:500]}\n")
+        sys.stderr.write(f"tabella: bootstrap failed: {result.stderr[:500]}\n")
     else:
-        sys.stderr.write("agent-docs: venv ready\n")
+        sys.stderr.write("tabella: venv ready\n")
     
     return venv_python
 
@@ -269,7 +269,7 @@ def _handle_tool(name: str, args: dict) -> str:
     """Dispatch a tool call to the appropriate handler and return JSON result."""
     try:
         if name == "doc_read":
-            from agent_docs.read import read
+            from tabella.read import read
             text = read(
                 args["path"],
                 max_chars=args.get("max_chars", 1_000_000),
@@ -284,12 +284,12 @@ def _handle_tool(name: str, args: dict) -> str:
             })
 
         elif name == "doc_read_meta":
-            from agent_docs.read import read_meta
+            from tabella.read import read_meta
             meta = read_meta(args["path"])
             return json.dumps({"success": True, "path": args["path"], "metadata": meta})
 
         elif name == "doc_convert":
-            from agent_docs.convert import doc_convert
+            from tabella.convert import doc_convert
             result = doc_convert(
                 input_path=args["input_path"],
                 to_format=args["to_format"],
@@ -301,10 +301,10 @@ def _handle_tool(name: str, args: dict) -> str:
             return json.dumps(result)
 
         elif name == "doc_create_document":
-            from agent_docs.create import create_document
+            from tabella.create import create_document
             output_path = args.get("output_path")
             if not output_path:
-                from agent_docs import get_output_dir
+                from tabella import get_output_dir
                 import time
                 ts = int(time.time())
                 fmt = args["format"]
@@ -319,7 +319,7 @@ def _handle_tool(name: str, args: dict) -> str:
             return json.dumps(result)
 
         elif name == "doc_edit_pdf":
-            from agent_docs.create import _edit_pdf_text
+            from tabella.create import _edit_pdf_text
             result = _edit_pdf_text(
                 path=args["path"],
                 page=args.get("page", 1),
@@ -346,7 +346,7 @@ def _handle_request(msg: dict) -> dict | None:
         return _result(req_id, {
             "protocolVersion": "2024-11-05",
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "agent-docs", "version": "2.0.0"},
+            "serverInfo": {"name": "tabella", "version": "2.0.0"},
         })
 
     elif method == "notifications/initialized":

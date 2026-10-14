@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: 📖 Documentation
-    url: https://github.com/dyiapanis/agent-docs/blob/main/README.md
+    url: https://github.com/dyiapanis/tabella/blob/main/README.md
     about: Check the README before opening an issue.
   - name: 🤝 Contributing Guide
-    url: https://github.com/dyiapanis/agent-docs/blob/main/CONTRIBUTING.md
+    url: https://github.com/dyiapanis/tabella/blob/main/CONTRIBUTING.md
     about: Read this before submitting a PR.

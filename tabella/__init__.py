@@ -1,4 +1,4 @@
-"""agent-docs — Document lifecycle suite.
+"""tabella — Document lifecycle suite.
 
 Three modules:
   - create  — Generate .docx/.xlsx/.pptx/.pdf/.odt/.ods/.odp from structured JSON

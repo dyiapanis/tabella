@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the suggestion! Before submitting, please search [existing issues](https://github.com/dyiapanis/agent-docs/issues) — someone may have already proposed this.
+        Thanks for the suggestion! Before submitting, please search [existing issues](https://github.com/dyiapanis/tabella/issues) — someone may have already proposed this.
 
   - type: textarea
     id: problem

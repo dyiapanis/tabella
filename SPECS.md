@@ -1,4 +1,4 @@
-# agent-docs — Specifications
+# tabella — Specifications
 
 ## Architecture
 

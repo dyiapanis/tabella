@@ -9,8 +9,8 @@ body:
         Thanks for reporting a bug! Please fill out the sections below so we can reproduce and fix it quickly.
 
         **Before submitting**, please:
-        - Search [existing issues](https://github.com/dyiapanis/agent-docs/issues) to avoid duplicates
-        - Update to the latest version (`pip install --upgrade agent-docs`) and confirm the bug still exists
+        - Search [existing issues](https://github.com/dyiapanis/tabella/issues) to avoid duplicates
+        - Update to the latest version (`pip install --upgrade tabella`) and confirm the bug still exists
 
   - type: textarea
     id: description
@@ -28,7 +28,7 @@ body:
       label: Steps to Reproduce
       description: Minimal steps to trigger the bug.
       placeholder: |
-        1. Install agent-docs with `pip install agent-docs[all]`
+        1. Install tabella with `pip install tabella[all]`
         2. Call `create_document("docx", ...)` with ...
         3. Error appears: ...
     validations:
@@ -54,7 +54,7 @@ body:
     id: module
     attributes:
       label: Affected Module
-      description: Which part of agent-docs is affected?
+      description: Which part of tabella is affected?
       options:
         - create (docx, xlsx, pptx, pdf, odt, ods, odp)
         - convert (pandoc-based format conversion)
@@ -84,8 +84,8 @@ body:
   - type: input
     id: plugin-version
     attributes:
-      label: agent-docs Version
-      description: Output of `pip show agent-docs`
+      label: tabella Version
+      description: Output of `pip show tabella`
       placeholder: "1.0.0"
     validations:
       required: true

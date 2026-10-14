@@ -1,15 +1,15 @@
-# Contributing to agent-docs
+# Contributing to tabella
 
 Thanks for your interest in contributing! This is a small plugin suite, so the process is lightweight.
 
 ## Reporting Issues
 
-Before opening an issue, search [existing issues](https://github.com/dyiapanis/agent-docs/issues) to avoid duplicates.
+Before opening an issue, search [existing issues](https://github.com/dyiapanis/tabella/issues) to avoid duplicates.
 
 **Bug reports** should include:
 - OS and version (e.g. Ubuntu 24.04, macOS 15.2)
 - Python version (`python --version`)
-- Plugin version (`pip show agent-docs`)
+- Plugin version (`pip show tabella`)
 - Minimal steps to reproduce
 - Expected vs actual behavior
 - Full error output if available
@@ -31,8 +31,8 @@ Before opening an issue, search [existing issues](https://github.com/dyiapanis/a
 ## Development Setup
 
 ```bash
-git clone git@github.com:dyiapanis/agent-docs.git
-cd agent-docs
+git clone git@github.com:dyiapanis/tabella.git
+cd tabella
 pip install -e ".[all,dev]"
 ```
 
@@ -54,4 +54,4 @@ agent_docs/
 
 ## Questions?
 
-Open a [discussion](https://github.com/dyiapanis/agent-docs/discussions) or an issue with the `question` label.
+Open a [discussion](https://github.com/dyiapanis/tabella/discussions) or an issue with the `question` label.

@@ -1,4 +1,4 @@
-# agent-docs
+# tabella
 
 A portable document lifecycle suite: create, convert, and read documents
 from structured JSON or raw HTML/CSS.
@@ -21,8 +21,8 @@ MCP servers, including:
 
 ```bash
 # Hermes Agent
-hermes plugins install dyiapanis/agent-docs --no-enable
-hermes plugins enable agent-docs
+hermes plugins install dyiapanis/tabella --no-enable
+hermes plugins enable tabella
 
 # Other v1-compatible clients: follow your client's plugin installation instructions
 ```
@@ -32,10 +32,10 @@ hermes plugins enable agent-docs
 ```json
 {
   "mcpServers": {
-    "agent-docs": {
+    "tabella": {
       "type": "stdio",
       "command": "python3",
-      "args": ["/path/to/agent-docs/mcp_server.py"]
+      "args": ["/path/to/tabella/mcp_server.py"]
     }
   }
 }
@@ -44,15 +44,15 @@ hermes plugins enable agent-docs
 **pip install** — use the Python library directly:
 
 ```bash
-pip install agent-docs[all]
+pip install tabella[all]
 ```
 
 Or install only the modules you need:
 
 ```bash
-pip install agent-docs[create]    # python-docx, openpyxl, python-pptx, weasyprint, odfpy
-pip install agent-docs[read]      # firecrawl-anydoc, liteparse, PyMuPDF
-pip install agent-docs[convert]   # no python deps (needs system pandoc + texlive-xetex)
+pip install tabella[create]    # python-docx, openpyxl, python-pptx, weasyprint, odfpy
+pip install tabella[read]      # firecrawl-anydoc, liteparse, PyMuPDF
+pip install tabella[convert]   # no python deps (needs system pandoc + texlive-xetex)
 ```
 
 ## Modules
@@ -108,7 +108,7 @@ python -m venv ~/.venvs/docs
 Or install the libraries into your main Python environment:
 
 ```bash
-pip install agent-docs[create]
+pip install tabella[create]
 ```
 
 ### Read module
@@ -120,13 +120,13 @@ pip install agent-docs[create]
 Or:
 
 ```bash
-pip install agent-docs[read]
+pip install tabella[read]
 ```
 
 ### Convert module
 
 ```bash
-pip install agent-docs[convert]
+pip install tabella[convert]
 ```
 
 Requires system-installed pandoc and a LaTeX engine:
@@ -155,8 +155,8 @@ brew install cairo pango gdk-pixbuf
 ## Installation from source
 
 ```bash
-git clone https://github.com/dyiapanis/agent-docs.git
-cd agent-docs
+git clone https://github.com/dyiapanis/tabella.git
+cd tabella
 pip install -e ".[all]"
 ```
 

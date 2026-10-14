@@ -1,4 +1,7 @@
-"""doc_read plugin: read documents via anydoc (primary) + LiteParse (OCR fallback).
+"""documents.read — read documents via anydoc (primary) + LiteParse (OCR fallback).
+
+Merged from the doc_read plugin. Dependencies (firecrawl-anydoc, liteparse) are
+now installed directly in the main Hermes venv — no subprocess/venv indirection.
 
 Architecture:
   - Office formats (DOCX, DOC, XLSX, XLSB, PPTX, PPT, ODT, ODS, ODP, RTF,
@@ -7,19 +10,10 @@ Architecture:
   - Scanned PDFs and images (JPG, PNG, TIFF) → LiteParse (Tesseract OCR).
     Used when anydoc returns empty for a PDF, or for image files directly.
   - Plain text (.txt, .md, .json, .py, .yaml, etc.) → direct file read.
-
-Dependencies (in docs venv, path resolved via get_docs_venv_python()):
-  - firecrawl-anydoc: office format parsing + text PDF extraction
-  - liteparse: OCR for scanned PDFs and images
 """
 import json
-import os
-import subprocess
 from pathlib import Path
 from typing import Any, Dict, Optional
-
-from agent_docs import get_docs_venv_python
-LITEPARSE_VENV = Path(get_docs_venv_python())
 
 # ── Format classification ────────────────────────────────────────────────────
 
@@ -55,31 +49,9 @@ def _run_anydoc(path: str, timeout: int = 60) -> str:
     Returns the Markdown text, or empty string if the document has no
     extractable text (e.g. scanned PDF without OCR).
     """
-    script = f"""
-import json, sys
-try:
     import anydoc
-    md = anydoc.to_markdown(sys.argv[1])
-    print(json.dumps({{"text": md or ""}}))
-except Exception as e:
-    print(json.dumps({{"error": f"{{type(e).__name__}}: {{e}}"}}))
-"""
-    cmd = [str(LITEPARSE_VENV), "-c", script, path]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
-    if result.returncode != 0 and not result.stdout:
-        raise RuntimeError(f"anydoc failed: {result.stderr.strip() or 'unknown error'}")
-    try:
-        data = json.loads(result.stdout.strip().splitlines()[-1])
-    except Exception as exc:
-        raise RuntimeError(f"anydoc output unreadable: {result.stdout!r} ({exc})")
-    if "error" in data:
-        raise RuntimeError(f"anydoc: {data['error']}")
-    return data.get("text") or ""
+    md = anydoc.to_markdown(path)
+    return md or ""
 
 
 # ── LiteParse (OCR fallback) ─────────────────────────────────────────────────
@@ -89,15 +61,10 @@ def _run_liteparse(path: str, extract_images: bool = True, timeout: int = 120) -
 
     Used for scanned PDFs and images where anydoc returns empty.
     """
-    if not LITEPARSE_VENV.exists():
-        raise RuntimeError(f"doc_read requires docs venv at {LITEPARSE_VENV}")
+    from liteparse import LiteParse, ParseResult
 
-    script = f"""
-import json, sys
-from liteparse import LiteParse, ParseResult
-try:
-    parser = LiteParse(ocr_enabled={extract_images!r}, output_format="text")
-    result = parser.parse(sys.argv[1])
+    parser = LiteParse(ocr_enabled=extract_images, output_format="text")
+    result = parser.parse(path)
     text = ""
     if isinstance(result, ParseResult):
         text = getattr(result, "text", None) or getattr(result, "markdown", None) or ""
@@ -105,29 +72,10 @@ try:
         text = result
     else:
         text = str(result)
-    print(json.dumps({{
+    return {
         "text": text,
-        "metadata": getattr(result, "metadata", {{}}) if hasattr(result, "metadata") else {{}},
-    }}))
-except Exception as e:
-    print(json.dumps({{"error": f"{{type(e).__name__}}: {{e}}"}}))
-"""
-    cmd = [str(LITEPARSE_VENV), "-c", script, path]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
-    if result.returncode != 0 and not result.stdout:
-        raise RuntimeError(f"liteparse failed: {result.stderr.strip() or 'unknown error'}")
-    try:
-        data = json.loads(result.stdout.strip().splitlines()[-1])
-    except Exception as exc:
-        raise RuntimeError(f"liteparse output unreadable: {result.stdout!r} ({exc})")
-    if "error" in data:
-        raise RuntimeError(f"liteparse: {data['error']}")
-    return data
+        "metadata": getattr(result, "metadata", {}) if hasattr(result, "metadata") else {},
+    }
 
 
 # ── Plain text fast path ─────────────────────────────────────────────────────
@@ -220,7 +168,6 @@ def register(registry):
         return
 
     def doc_read(path: str, max_chars: int = 1_000_000, extract_images: bool = True):
-        import json
         try:
             text = read(path, max_chars=max_chars, extract_images=extract_images)
             return {
@@ -234,7 +181,6 @@ def register(registry):
             return {"success": False, "path": path, "error": f"{type(e).__name__}: {e}"}
 
     def doc_read_meta(path: str):
-        import json
         try:
             meta = read_meta(path)
             return {"success": True, "path": path, "metadata": meta}

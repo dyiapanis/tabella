@@ -32,7 +32,7 @@ Fixes #
 
 ## Checklist
 
-- [ ] I searched [existing PRs](https://github.com/dyiapanis/agent-docs/pulls) to make sure this isn't a duplicate
+- [ ] I searched [existing PRs](https://github.com/dyiapanis/tabella/pulls) to make sure this isn't a duplicate
 - [ ] My commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
 - [ ] My PR contains only changes related to this fix/feature
 - [ ] I've updated relevant documentation (README, docstrings) — or N/A

@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "agent-docs",
+  "name": "tabella",
   "version": "2.0.0",
   "description": "Portable document lifecycle suite — create, convert, and read documents. Agent Plugins v1 compatible.",
   "author": {
@@ -8,7 +8,7 @@
     "url": "https://github.com/dyiapanis"
   },
   "license": "MIT",
-  "homepage": "https://github.com/dyiapanis/agent-docs",
-  "repository": "https://github.com/dyiapanis/agent-docs",
+  "homepage": "https://github.com/dyiapanis/tabella",
+  "repository": "https://github.com/dyiapanis/tabella",
   "keywords": ["documents", "docx", "xlsx", "pptx", "pdf", "odt", "pandoc", "anydoc", "ocr", "document-generation"]
 }
