@@ -153,12 +153,25 @@ def read_meta(path: str) -> Dict[str, Any]:
     if suffix in TEXT_SUFFIXES:
         return {"path": path, "format": "text"}
 
-    # For office formats, anydoc doesn't expose metadata.
-    # Use LiteParse for metadata (it has metadata extraction).
-    data = _run_liteparse(path, extract_images=False)
-    meta = data.get("metadata") or {}
-    meta["path"] = path
-    return meta
+    # LiteParse has the richest metadata extraction (office + PDF + images).
+    try:
+        data = _run_liteparse(path, extract_images=False)
+        meta = data.get("metadata") or {}
+        meta["path"] = path
+        return meta
+    except Exception:
+        # LiteParse unavailable (e.g. its LibreOffice fallback missing for office
+        # formats). Fall back to filesystem-truth metadata rather than failing:
+        # callers get valid basics instead of a tool error.
+        import os
+
+        st = os.stat(path)
+        return {
+            "path": path,
+            "format": suffix.lstrip("."),
+            "size_bytes": st.st_size,
+            "mtime": st.st_mtime,
+        }
 
 
 # ── Hermes plugin registration ──
