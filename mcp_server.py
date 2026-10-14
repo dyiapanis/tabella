@@ -74,32 +74,35 @@ def _ensure_venv() -> str:
 # ── MCP protocol ─────────────────────────────────────────────────────────────
 
 def _read_message() -> dict | None:
-    """Read one JSON-RPC message from stdin (Content-Length framed)."""
+    """Read one JSON-RPC message from stdin.
+
+    MCP stdio transport (spec): newline-delimited JSON, one message per line.
+    Content-Length framed input (LSP convention) is tolerated for robustness
+    but is NOT what spec-compliant clients send.
+    """
     headers = {}
     while True:
         line = sys.stdin.readline()
         if not line:
             return None
-        line = line.strip()
-        if not line:
-            break
-        if ":" in line:
-            key, val = line.split(":", 1)
-            headers[key.strip().lower()] = val.strip()
-    length = int(headers.get("content-length", 0))
-    if length == 0:
-        return None
-    body = sys.stdin.read(length)
-    try:
-        return json.loads(body)
-    except json.JSONDecodeError:
-        return None
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if ":" in stripped and stripped.lower().startswith("content-length:"):
+            headers["content-length"] = int(stripped.split(":", 1)[1].strip())
+            continue
+        # Newline-delimited JSON (MCP stdio spec framing)
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            if headers.get("content-length"):
+                return None
+            continue  # tolerate stray blank/garbage lines
 
 
 def _write_message(msg: dict) -> None:
-    """Write a JSON-RPC message to stdout with Content-Length framing."""
-    body = json.dumps(msg)
-    sys.stdout.write(f"Content-Length: {len(body)}\r\n\r\n{body}")
+    """Write a JSON-RPC message to stdout — newline-delimited (MCP stdio spec)."""
+    sys.stdout.write(json.dumps(msg) + "\n")
     sys.stdout.flush()
 
 
