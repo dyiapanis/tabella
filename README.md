@@ -16,16 +16,22 @@ MCP servers, including:
 
 ### Three installation paths
 
-**Step 1 — start the document server (all paths):**
+**Transports:** the plugin ships both.
 
-```bash
-python3 scripts/mcp_http_server.py          # serves 127.0.0.1:8602
-```
+- **stdio (default)** — the declaring client spawns `mcp_server.py` itself
+  (Agent Plugins v1 lifecycle; `PLUGIN_ROOT`/`PLUGIN_DATA` injected by the
+  client). Nothing to run by hand.
+- **streamable-HTTP (self-host lane)** — for clients that prefer connecting
+  to a URL, run the server yourself:
 
-The first run bootstraps the dependency venv automatically (or run
-`scripts/setup.sh` yourself). Keyless loopback by default; set `TABELLA_TOKEN`
-to require a bearer token. Keep it running (nohup, systemd unit, or your
-plugin host's lifecycle) — clients connect to the running server.
+  ```bash
+  python3 scripts/mcp_http_server.py   # serves 127.0.0.1:8602
+  ```
+
+  First run bootstraps the dependency venv (or `scripts/setup.sh`);
+  `TABELLA_TOKEN` enables bearer auth. Then point an `mcp.json`
+  `streamable-http` entry at `http://127.0.0.1:8602/mcp`.
+
 
 
 **Agent Plugins v1 package** — clients that support the v1 spec auto-discover
