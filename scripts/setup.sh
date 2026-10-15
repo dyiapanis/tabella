@@ -21,18 +21,12 @@ if [ ! -d "$VENV_DIR" ]; then
     python3 -m venv "$VENV_DIR"
 fi
 
-# Install Python dependencies
+# Install Python dependencies — exact versions pinned with sha256 hashes
+# (all 25 transitive packages locked; see requirements-pinned.txt). The lock
+# was generated with the ranges below and installs are reproducible: a fresh
+# venv from this file resolves byte-identically.
 "$VENV_DIR/bin/pip" install --quiet --upgrade pip
-"$VENV_DIR/bin/pip" install --quiet \
-    "python-docx>=1.0,<2.0" \
-    "openpyxl>=3.1,<4.0" \
-    "python-pptx>=0.6,<2.0" \
-    "weasyprint>=60.0,<70.0" \
-    "odfpy>=1.4,<2.0" \
-    "Pillow>=10.0,<13.0" \
-    "lxml>=5.0,<7.0" \
-    "PyMuPDF>=1.24,<2.0" \
-    "firecrawl-anydoc>=0.1.1,<0.3.0" \
-    "liteparse>=2.0.0,<3.0.0"
+"$VENV_DIR/bin/pip" install --quiet --require-hashes \
+    -r "$(dirname "$0")/../requirements-pinned.txt"
 
 echo "tabella: venv ready at $VENV_PYTHON"
