@@ -507,7 +507,7 @@ def create_document(format: str, content, output_path: str, template: str = None
         format: "docx", "xlsx", "pptx", "pdf", "odt", "ods", or "odp"
         content: Structured content dict, or a plain string (auto-normalized)
         output_path: Absolute path for the output file
-        template: Optional template path
+        template: Optional template path (docx/pptx only — loads styles/layouts from the file; ignored by other formats)
         options: Optional format-specific options
     """
     format = format.lower()
@@ -733,7 +733,7 @@ def register(registry):
                 },
                 "template": {
                     "type": "string",
-                    "description": "Optional template path (.dotx, .odt, .xltx, .potx, etc.)",
+                    "description": "Optional template path — honored by docx (.docx/.dotx) and pptx (.pptx/.potx) creation: styles, theme, headers/footers and slide layouts load from the file. Ignored by every other format.",
                 },
                 "options": {
                     "type": "object",

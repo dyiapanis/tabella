@@ -191,7 +191,7 @@ TOOLS = [
                 },
                 "template": {
                     "type": "string",
-                    "description": "Optional template path (.dotx, .odt, .xltx, .potx, etc.)",
+                    "description": "Optional template path — honored by docx (.docx/.dotx) and pptx (.pptx/.potx) creation: styles, theme, headers/footers and slide layouts load from the file. Ignored by every other format.",
                 },
                 "options": {
                     "type": "object",
