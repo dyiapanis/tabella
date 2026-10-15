@@ -44,15 +44,15 @@ hermes plugins enable tabella
 **pip install** — use the Python library directly:
 
 ```bash
-pip install tabella[all]
+pip install tabella-docs[all]
 ```
 
 Or install only the modules you need:
 
 ```bash
-pip install tabella[create]    # python-docx, openpyxl, python-pptx, weasyprint, odfpy
-pip install tabella[read]      # firecrawl-anydoc, liteparse, PyMuPDF
-pip install tabella[convert]   # no python deps (needs system pandoc + texlive-xetex)
+pip install tabella-docs[create]    # python-docx, openpyxl, python-pptx, weasyprint, odfpy
+pip install tabella-docs[read]      # firecrawl-anydoc, liteparse, PyMuPDF
+pip install tabella-docs[convert]   # no python deps (needs system pandoc + texlive-xetex)
 ```
 
 ## Modules
@@ -129,7 +129,7 @@ python -m venv ~/.venvs/docs
 Or install the libraries into your main Python environment:
 
 ```bash
-pip install tabella[create]
+pip install tabella-docs[create]
 ```
 
 ### Read module
@@ -141,13 +141,13 @@ pip install tabella[create]
 Or:
 
 ```bash
-pip install tabella[read]
+pip install tabella-docs[read]
 ```
 
 ### Convert module
 
 ```bash
-pip install tabella[convert]
+pip install tabella-docs[convert]
 ```
 
 Requires system-installed pandoc and a LaTeX engine:
