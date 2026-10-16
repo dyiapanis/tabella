@@ -1,7 +1,7 @@
 """documents.read — read documents via anydoc (primary) + LiteParse (OCR fallback).
 
 Merged from the doc_read plugin. Dependencies (firecrawl-anydoc, liteparse) are
-now installed directly in the main Hermes venv — no subprocess/venv indirection.
+now installed directly in the the bootstrapped per-plugin venv (PYTHON_BOOTSTRAP: scripts/setup.sh; stdio/HTTP servers exec into it on first serve)
 
 Architecture:
   - Office formats (DOCX, DOC, XLSX, XLSB, PPTX, PPT, ODT, ODS, ODP, RTF,

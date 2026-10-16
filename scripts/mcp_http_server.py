@@ -30,7 +30,27 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 PROTOCOL = "2025-06-18"
-TOKEN = os.environ.get("TABELLA_TOKEN")
+# Catalog review finding 3: the loopback lane requires a token OUT OF THE BOX.
+# Order: TABELLA_TOKEN env > persisted generated token (<PLUGIN_DATA|~/.local/share)/tabella/http.token).
+def _resolve_token() -> str:
+    env = os.environ.get("TABELLA_TOKEN")
+    if env:
+        return env
+    data_dir = os.environ.get("PLUGIN_DATA") or os.path.expanduser("~/.local/share/tabella")
+    os.makedirs(data_dir, exist_ok=True)
+    tok_file = os.path.join(data_dir, "http.token")
+    if os.path.exists(tok_file):
+        return open(tok_file, encoding="utf-8").read().strip()
+    import secrets
+    tok = secrets.token_urlsafe(32)
+    fd = os.open(tok_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(tok + "\n")
+    sys.stderr.write(f"tabella: generated HTTP lane token at {tok_file}\n")
+    return tok
+
+
+TOKEN = _resolve_token()
 
 # ── Bootstrap: ensure docs venv exists before serving ───────────────────────
 
@@ -345,6 +365,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path != "/mcp":
             self._json({"jsonrpc": "2.0", "error": {"code": -32600, "message": "unknown path"}}, 404)
+            return
+        origin = self.headers.get("Origin")
+        if origin:
+            self._json({"jsonrpc": "2.0", "error": {"code": -32000, "message": "blocked: request must not carry an Origin header (browser-CSRF guard)"}}, 403)
+            return
+        ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip()
+        if ctype and ctype != "application/json":
+            self._json({"jsonrpc": "2.0", "error": {"code": -32000, "message": f"Content-Type must be application/json, got {ctype!r}"}}, 415)
             return
         if not self._auth():
             self._json({"jsonrpc": "2.0", "error": {"code": -32000, "message": "unauthorized"}}, 401)

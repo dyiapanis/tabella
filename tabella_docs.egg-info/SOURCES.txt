@@ -1,0 +1,14 @@
+LICENSE
+README.md
+pyproject.toml
+tabella/__init__.py
+tabella/convert.py
+tabella/create.py
+tabella/read.py
+tabella/utils.py
+tabella_docs.egg-info/PKG-INFO
+tabella_docs.egg-info/SOURCES.txt
+tabella_docs.egg-info/dependency_links.txt
+tabella_docs.egg-info/requires.txt
+tabella_docs.egg-info/top_level.txt
+tests/test_text_section_alias.py

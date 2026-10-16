@@ -2,7 +2,7 @@
 
 Merged from the doc_create plugin. Dependencies (python-docx, openpyxl,
 python-pptx, weasyprint, odfpy, nano-pdf) are now installed directly in the
-main Hermes venv — the old ~/.hermes/venvs/docs subprocess pattern is removed.
+the bootstrapped per-plugin venv (PYTHON_BOOTSTRAP: scripts/setup.sh; stdio/HTTP servers exec into it on first serve)
 Builder functions import and use the libraries directly.
 """
 
@@ -16,6 +16,31 @@ from pathlib import Path
 from .utils import _get_output_dir, _is_in_output_dir, _resolve_output_dir
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_url_fetcher(font_config):
+    """URL fetcher for model-supplied HTML: refuse network + host filesystem.
+
+    Only data: URIs and WeasyPrint's own font temp-file references resolve
+    — <img src>, @import and file:// against anything else raise (catalog
+    review finding 2: 'no network' must be true, not a wording promise).
+    """
+    from pathlib import Path as _P
+
+    def fetch(url, *a, **kw):
+        tmp_dir = str(getattr(font_config, "tmp_directory", "") or "")
+        if url.startswith("data:") or (
+            url.startswith("file:") and tmp_dir
+            and url[len("file://"):].startswith(_P(tmp_dir).resolve().as_posix())
+        ):
+            from weasyprint import default_url_fetcher as _default
+            return _default(url, *a, **kw)
+        raise ValueError(
+            f"blocked external URL in HTML: {url[:80]!r} — network and "
+            "host-file access are disabled; use embedded data: URIs"
+        )
+
+    return fetch
 
 
 def _css_escape(s: str) -> str:
@@ -265,7 +290,7 @@ def _build_pdf(content: dict, output_path: str, template: str = None, options: d
             """
 
         font_config = FontConfiguration()
-        HTML(string=html_str).write_pdf(output_path, stylesheets=[CSS(string=css_str, font_config=font_config)])
+        HTML(string=html_str, url_fetcher=_safe_url_fetcher(font_config)).write_pdf(output_path, stylesheets=[CSS(string=css_str, font_config=font_config)])
         return {"success": True, "path": output_path, "format": "pdf"}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -492,7 +517,7 @@ def _build_pdf_from_html(content: dict, output_path: str, template: str = None, 
 
         css_str = "\n".join(css_lines)
         font_config = FontConfiguration()
-        HTML(string=html_str).write_pdf(output_path, stylesheets=[CSS(string=css_str, font_config=font_config)])
+        HTML(string=html_str, url_fetcher=_safe_url_fetcher(font_config)).write_pdf(output_path, stylesheets=[CSS(string=css_str, font_config=font_config)])
         return {"success": True, "path": output_path, "format": "pdf"}
     except Exception as e:
         return {"success": False, "error": str(e)}

@@ -1,3 +1,4 @@
+import re
 """documents.convert — Document format conversion via pandoc + LaTeX.
 
 Supports: markdown → PDF/DOCX/HTML/ODT/EPUB and any pandoc-supported format pair.
@@ -93,7 +94,20 @@ def doc_convert(
         engine = _pdf_engine()
         cmd.extend(["--pdf-engine", engine])
     if extra_args:
-        cmd.extend(extra_args)
+        # strict allowlist — pandoc can execute arbitrary code via --filter/
+        # --lua-filter/--pdf-engine, so only formatting flags are honored
+        # (catalog review #2026-10-16, finding 1).
+        allowed = {"--toc", "--number-sections"}
+        for a in extra_args:
+            if a in allowed:
+                cmd.append(a)
+            elif re.match(r"^-V\S*=", a):
+                cmd.append(a)
+            else:
+                raise ValueError(
+                    f"unsupported pandoc argument {a!r}: extra_args allows only "
+                    "--toc, --number-sections and -V <key>=<value>"
+                )
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
