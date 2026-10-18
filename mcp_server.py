@@ -378,9 +378,15 @@ def _handle_request(msg: dict) -> dict | None:
 # ── Main loop ────────────────────────────────────────────────────────────────
 
 def main():
-    # Bootstrap venv on first run
-    _ensure_venv()
-    
+    # Bootstrap venv on first run, then re-exec into its python so all tool
+    # imports (weasyprint/python-docx/...) resolve from the venv, not the
+    # client's interpreter. Guard against exec loops via the env marker.
+    if not os.environ.get("TABELL_REEXEC"):
+        venv_python = _ensure_venv()
+        if Path(venv_python).exists() and Path(sys.executable) != Path(venv_python):
+            os.environ["TABELL_REEXEC"] = "1"
+            os.execv(venv_python, [venv_python] + sys.argv)
+
     while True:
         msg = _read_message()
         if msg is None:

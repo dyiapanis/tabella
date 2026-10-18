@@ -10,7 +10,9 @@
     "tabella_http": {
       "type": "streamable-http",
       "url": "http://127.0.0.1:8602/mcp",
-      "headers": {}
+      "headers": {
+        "Authorization": "Bearer REPLACE_WITH_TABELL_HTTP_TOKEN"
+      }
     }
   }
 }

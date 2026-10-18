@@ -423,7 +423,15 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    _ensure_venv()  # idempotent bootstrap; stderr-noted, never fatal
+    # Bootstrap venv, then re-exec into the venv python so tool imports
+    # resolve from it rather than the ambient interpreter. Env marker guards
+    # against exec-loop when the venv python is unusable.
+    if not os.environ.get("TABELL_REEXEC"):
+        venv_python = _ensure_venv()
+        if Path(venv_python).exists() and Path(sys.executable) != Path(venv_python):
+            os.environ["TABELL_REEXEC"] = "1"
+            os.execv(venv_python, [venv_python] + sys.argv)
+
     ap = argparse.ArgumentParser(prog="tabella-mcp-http")
     ap.add_argument("--addr", default="127.0.0.1:8602")
     a = ap.parse_args()

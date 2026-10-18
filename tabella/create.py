@@ -44,7 +44,18 @@ def _safe_url_fetcher(font_config):
 
 
 def _css_escape(s: str) -> str:
-    return s.replace('\\', '\\\\').replace("'", "\\'")
+    # Escape string delimiters AND CSS-significant chars. CSS strings don't
+    # understand \n/\r as literal chars — convert them to the \A control
+    # sequence so an injected newline can't break out of a `content: '...'`
+    # declaration and smuggle in @font-face urls or import statements.
+    return (
+        s.replace("\\", "\\\\")
+         .replace("'", "\\'")
+         .replace("\n", "\\A ")
+         .replace("\r", "\\A ")
+         .replace("{", "\\{")
+         .replace("}", "\\}")
+    )
 
 
 # ── builder functions (direct, no subprocess) ──
@@ -290,7 +301,8 @@ def _build_pdf(content: dict, output_path: str, template: str = None, options: d
             """
 
         font_config = FontConfiguration()
-        HTML(string=html_str, url_fetcher=_safe_url_fetcher(font_config)).write_pdf(output_path, stylesheets=[CSS(string=css_str, font_config=font_config)])
+        fetcher = _safe_url_fetcher(font_config)
+        HTML(string=html_str, url_fetcher=fetcher).write_pdf(output_path, stylesheets=[CSS(string=css_str, url_fetcher=fetcher, font_config=font_config)])
         return {"success": True, "path": output_path, "format": "pdf"}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -508,16 +520,20 @@ def _build_pdf_from_html(content: dict, output_path: str, template: str = None, 
         css_lines.append("td, th { border: 1px solid #ccc; padding: 6px; text-align: left; }")
 
         if header_text:
-            css_lines.append("@page { @top-center { content: '" + header_text.replace("'", "\\'") + "'; font-size: 9pt; color: #666; } }")
+            css_lines.append("@page { @top-center { content: '" + _css_escape(header_text) + "'; font-size: 9pt; color: #666; } }")
         if footer_text or page_numbers:
             footer_content = footer_text or ""
             if page_numbers:
                 footer_content += " Page " + ("" if not footer_text else " ") + "counter(page)"
-            css_lines.append("@page { @bottom-center { content: '" + footer_content.replace("'", "\\'") + "'; font-size: 9pt; color: #666; } }")
+            css_lines.append("@page { @bottom-center { content: '" + _css_escape(footer_content) + "'; font-size: 9pt; color: #666; } }")
 
         css_str = "\n".join(css_lines)
         font_config = FontConfiguration()
-        HTML(string=html_str, url_fetcher=_safe_url_fetcher(font_config)).write_pdf(output_path, stylesheets=[CSS(string=css_str, font_config=font_config)])
+        fetcher = _safe_url_fetcher(font_config)
+        HTML(string=html_str, url_fetcher=fetcher).write_pdf(
+            output_path,
+            stylesheets=[CSS(string=css_str, url_fetcher=fetcher, font_config=font_config)],
+        )
         return {"success": True, "path": output_path, "format": "pdf"}
     except Exception as e:
         return {"success": False, "error": str(e)}

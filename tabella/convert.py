@@ -1,4 +1,3 @@
-import re
 """documents.convert — Document format conversion via pandoc + LaTeX.
 
 Supports: markdown → PDF/DOCX/HTML/ODT/EPUB and any pandoc-supported format pair.
@@ -6,6 +5,7 @@ Output directory is configurable via DOCS_OUTPUT_DIR (defaults to ~/Documents).
 Merged from the doc_convert plugin.
 """
 
+import re
 import json
 import logging
 import shutil
@@ -70,6 +70,8 @@ def doc_convert(
     # Determine formats
     src_fmt = from_format or _infer_format(src.suffix.lstrip(".").lower())
     tgt_fmt = to_format.lower()
+    _check_format(src_fmt, "from_format")
+    _check_format(tgt_fmt, "to_format")
 
     # Determine output path
     if output_path:
@@ -150,6 +152,22 @@ def _infer_format(ext: str) -> str:
         "epub": "epub",
     }
     return mapping.get(ext, ext)
+
+
+# Pandoc treats a format name ending in ".lua" as a path to a custom Lua
+# reader/writer and executes it with the full Lua stdlib (os.execute) —
+# same code-exec class as --lua-filter via a different argument. Restrict
+# format names to pandoc's built-in name grammar (catalog finding 2026-10-17).
+_FORMAT_RE = re.compile(r"^[a-z0-9_]+([+-][a-z0-9_]+)*$")
+
+
+def _check_format(name: str, which: str) -> None:
+    """Reject anything that isn't a built-in pandoc format name."""
+    if not _FORMAT_RE.match(name):
+        raise ValueError(
+            f"unsupported {which} {name!r}: must be a built-in pandoc format "
+            "(alphanumeric/underscore, optional +ext/-ext modifiers)"
+        )
 
 
 def _handle_doc_convert(args: dict, **kwargs) -> str:
