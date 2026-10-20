@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tabella-docs"
-version = "2.0.1"
+version = "2.0.2"
 description = "Portable document lifecycle suite — create (.docx/.xlsx/.pptx/.pdf/.odt/.ods/.odp), convert (pandoc), and read (anydoc + LiteParse OCR) documents. Agent Plugins v1 compatible."
 readme = "README.md"
 license = "MIT"

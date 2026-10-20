@@ -59,6 +59,10 @@ def stdio_handshake():
                     "params": {"protocolVersion": "2025-06-18",
                                "capabilities": {}, "clientInfo": {"name": "smoke"}}})
         assert info["serverInfo"]["name"] == "tabella", info
+        # version sync: serverInfo must match plugin.json (drift bit us once — 2.0.0 vs 2.0.1)
+        manifest = json.loads((REPO / "plugin.json").read_text(encoding="utf-8"))
+        assert info["serverInfo"]["version"] == manifest["version"], \
+            f"serverInfo {info['serverInfo']['version']} != plugin.json {manifest['version']}"
         tools = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
         names = sorted(t["name"] for t in tools["tools"])
         assert len(names) == 5, f"expected 5 tools, got {names}"

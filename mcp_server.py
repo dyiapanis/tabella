@@ -306,7 +306,7 @@ def _handle_request(msg: dict) -> dict | None:
         return _result(req_id, {
             "protocolVersion": "2024-11-05",
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "tabella", "version": "2.0.0"},
+            "serverInfo": {"name": "tabella", "version": "2.0.2"},
         })
 
     elif method == "notifications/initialized":
