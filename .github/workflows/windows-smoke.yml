@@ -1,0 +1,51 @@
+name: windows-smoke
+# Windows smoke battery: proves all five tool lanes on windows-latest.
+# Guards both lanes — every dev push and every release (main) push.
+on:
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        id: py
+        with:
+          python-version: "3.12"
+
+      - name: GTK runtime for WeasyPrint (pdf lane)
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-pango
+            mingw-w64-x86_64-gdk-pixbuf2
+            mingw-w64-x86_64-gtk3
+
+      - name: Put GTK DLLs on PATH
+        # the action exposes the install dir as the msys2-location output
+        run: Add-Content $env:GITHUB_PATH (Join-Path '${{ steps.msys2.outputs.msys2-location }}' 'mingw64\bin')
+
+      - name: Pandoc (convert lane)
+        run: choco install pandoc -y
+
+      - name: Install tabella (all extras)
+        # pin the interpreter: later GITHUB_PATH additions (msys2) prepend ahead
+        # of setup-python, so bare `python` can resolve to MSYS2's 3.14
+        run: "& '${{ steps.py.outputs.python-path }}' -m pip install -e '.[all]'"
+
+      - name: Smoke battery
+        run: "& '${{ steps.py.outputs.python-path }}' tests/smoke_battery.py"
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+          # WeasyPrint dlopens GTK with LOAD_LIBRARY_SEARCH_DEFAULT_DIRS
+          # which ignores PATH; it reads this var for add_dll_directory().
+          # Default is C:\msys64 — the msys2 action installs elsewhere.
+          WEASYPRINT_DLL_DIRECTORIES: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin
