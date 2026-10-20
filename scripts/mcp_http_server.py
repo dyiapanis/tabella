@@ -53,50 +53,8 @@ def _resolve_token() -> str:
 TOKEN = _resolve_token()
 
 # ── Bootstrap: ensure docs venv exists before serving ───────────────────────
-
-def _ensure_venv() -> str:
-    """Return the path to the docs venv Python, bootstrapping if needed.
-
-    Checks DOCS_VENV_PYTHON env var first. If not set or the venv doesn't
-    exist, runs scripts/setup.sh to create one in PLUGIN_DATA (provided by
-    the v1 client) or ~/.venvs/docs as fallback.
-    """
-    # If DOCS_VENV_PYTHON is set and exists, use it
-    venv_python = os.environ.get("DOCS_VENV_PYTHON")
-    if venv_python and Path(venv_python).exists():
-        return venv_python
-
-    # Determine where to create the venv
-    plugin_data = os.environ.get("PLUGIN_DATA")
-    if plugin_data:
-        venv_dir = Path(plugin_data) / "venv"
-    else:
-        venv_dir = Path.home() / ".venvs" / "docs"
-
-    venv_python = str(venv_dir / "bin" / "python")
-
-    if venv_dir.exists() and Path(venv_python).exists():
-        return venv_python
-
-    # Bootstrap: run the setup script
-    plugin_root = Path(__file__).parent.parent.resolve()
-    setup_script = plugin_root / "scripts" / "setup.sh"
-    if not setup_script.exists():
-        sys.stderr.write(f"tabella: setup script not found at {setup_script}\n")
-        return venv_python  # let tool calls fail with a helpful error
-
-    sys.stderr.write("tabella: bootstrapping docs venv (first run)...\n")
-    data_dir = str(venv_dir.parent) if plugin_data else str(venv_dir)
-    result = subprocess.run(
-        ["bash", str(setup_script), data_dir],
-        capture_output=True, text=True, timeout=300,
-    )
-    if result.returncode != 0:
-        sys.stderr.write(f"tabella: bootstrap failed: {result.stderr[:500]}\n")
-    else:
-        sys.stderr.write("tabella: venv ready\n")
-
-    return venv_python
+# shared with the stdio server (mcp_server.py) — one implementation
+from tabella.bootstrap import ensure_venv
 
 # ── Tool definitions ─────────────────────────────────────────────────────────
 
@@ -427,7 +385,7 @@ def main() -> None:
     # resolve from it rather than the ambient interpreter. Env marker guards
     # against exec-loop when the venv python is unusable.
     if not os.environ.get("TABELL_REEXEC"):
-        venv_python = _ensure_venv()
+        venv_python = ensure_venv()
         if Path(venv_python).exists() and Path(sys.executable) != Path(venv_python):
             os.environ["TABELL_REEXEC"] = "1"
             os.execv(venv_python, [venv_python] + sys.argv)
