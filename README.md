@@ -70,7 +70,7 @@ Or install only the modules you need:
 ```bash
 pip install tabella-docs[create]    # python-docx, openpyxl, python-pptx, weasyprint, odfpy
 pip install tabella-docs[read]      # firecrawl-anydoc, liteparse, PyMuPDF
-pip install tabella-docs[convert]   # no python deps (needs system pandoc + texlive-xetex)
+pip install tabella-docs[convert]   # no python deps (needs system pandoc; a TeX engine only for pdf output)
 ```
 
 ## Modules
@@ -191,6 +191,23 @@ sudo apt install libcairo2 libpango-1.0-0 libgdk-pixbuf-2.0-0
 brew install cairo pango gdk-pixbuf
 ```
 
+### Windows
+
+tabella runs natively on Windows 10/11 (64-bit, Python 3.10+); all five MCP
+tools are exercised on `windows-latest` in CI. Native dependencies, installed
+per feature:
+
+- **PDF creation (WeasyPrint)** — the
+  [GTK3 runtime installer](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer)
+  (its default install location is on WeasyPrint's search path)
+- **Convert** — [pandoc](https://pandoc.org/installing.html); a TeX engine
+  (e.g. MiKTeX) only when the *output* format is PDF
+- **OCR fallback** — [Tesseract for Windows](https://github.com/UB-Mannheim/tesseract/wiki),
+  only for scanned PDFs and images
+
+The first-run dependency venv bootstraps natively on Windows (stdlib venv
+module — no bash, MSYS2, or WSL required).
+
 ## Installation from source
 
 ```bash
@@ -211,10 +228,11 @@ pip install -e ".[all]"
 ### Automatic bootstrap
 
 On first startup, the MCP server checks if the docs venv exists. If not,
-it runs `scripts/setup.sh` to create a venv in `PLUGIN_DATA` (provided by
-the v1 client) or `~/.venvs/docs` as fallback, and installs all dependencies:
+it creates one in `PLUGIN_DATA` (provided by the v1 client) or
+`~/.venvs/docs` as fallback, and installs all dependencies:
 python-docx, openpyxl, python-pptx, weasyprint, odfpy, PyMuPDF,
-firecrawl-anydoc, liteparse.
+firecrawl-anydoc, liteparse. On POSIX this runs `scripts/setup.sh`; on
+Windows the venv is built with the standard library's `venv` module.
 
 This means the v1 package is fully self-contained — no manual pip install
 required. The bootstrap runs once; subsequent startups use the existing venv.
