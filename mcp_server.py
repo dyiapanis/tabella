@@ -45,14 +45,40 @@ def _ensure_venv() -> str:
         venv_dir = Path(plugin_data) / "venv"
     else:
         venv_dir = Path.home() / ".venvs" / "docs"
-    
-    venv_python = str(venv_dir / "bin" / "python")
-    
+
+    # venv layout differs by platform: bin/python vs Scripts\python.exe
+    if os.name == "nt":
+        venv_python = str(venv_dir / "Scripts" / "python.exe")
+    else:
+        venv_python = str(venv_dir / "bin" / "python")
+
     if venv_dir.exists() and Path(venv_python).exists():
         return venv_python
 
-    # Bootstrap: run the setup script
     plugin_root = Path(__file__).parent.resolve()
+
+    if os.name == "nt":
+        # No bash on a stock Windows box — build the venv with the stdlib
+        # venv module + the venv's own pip, mirroring scripts/setup.sh.
+        pinned = plugin_root / "requirements-pinned.txt"
+        sys.stderr.write("tabella: bootstrapping docs venv (first run)...\n")
+        result = subprocess.run(
+            [sys.executable, "-m", "venv", str(venv_dir)],
+            capture_output=True, text=True, timeout=600,
+        )
+        if result.returncode == 0:
+            result = subprocess.run(
+                [venv_python, "-m", "pip", "install", "--quiet", "--require-hashes",
+                 "-r", str(pinned)],
+                capture_output=True, text=True, timeout=600,
+            )
+        if result.returncode != 0:
+            sys.stderr.write(f"tabella: bootstrap failed: {result.stderr[:500]}\n")
+        else:
+            sys.stderr.write("tabella: venv ready\n")
+        return venv_python
+
+    # POSIX bootstrap: run the setup script
     setup_script = plugin_root / "scripts" / "setup.sh"
     if not setup_script.exists():
         sys.stderr.write(f"tabella: setup script not found at {setup_script}\n")
