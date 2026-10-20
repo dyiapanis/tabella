@@ -18,11 +18,11 @@ from .utils import _get_output_dir, _is_in_output_dir, _resolve_output_dir
 logger = logging.getLogger(__name__)
 
 
-def _check_deps() -> Optional[str]:
-    """Return error string if pandoc or LaTeX is missing, else None."""
+def _check_deps(needs_tex: bool = False) -> Optional[str]:
+    """Return error string if pandoc — or, for pdf targets, LaTeX — is missing."""
     if not shutil.which("pandoc"):
         return "pandoc is not installed. Install it (e.g. `sudo apt install pandoc`)."
-    if not shutil.which("pdflatex") and not shutil.which("xelatex"):
+    if needs_tex and not shutil.which("pdflatex") and not shutil.which("xelatex"):
         return "No LaTeX engine found. Install texlive (e.g. `sudo apt install texlive-xetex`)."
     return None
 
@@ -59,10 +59,6 @@ def doc_convert(
         {"success": bool, "output_path": str, "from_format": str, "to_format": str,
          "pdf_engine": str | None, "message": str}
     """
-    dep_err = _check_deps()
-    if dep_err:
-        return {"success": False, "error": dep_err}
-
     src = Path(input_path).expanduser().resolve()
     if not src.exists():
         return {"success": False, "error": f"Source file not found: {src}"}
@@ -72,6 +68,11 @@ def doc_convert(
     tgt_fmt = to_format.lower()
     _check_format(src_fmt, "from_format")
     _check_format(tgt_fmt, "to_format")
+
+    # pandoc is always required; a TeX engine only for pdf output
+    dep_err = _check_deps(tgt_fmt == "pdf")
+    if dep_err:
+        return {"success": False, "error": dep_err}
 
     # Determine output path
     if output_path:
