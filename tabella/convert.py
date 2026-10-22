@@ -52,7 +52,9 @@ def doc_convert(
                      When omitted, pandoc infers from file extension.
         output_path: Optional absolute path for the output file.
                      When omitted, writes to the user's documents directory.
-        extra_args:  Optional extra pandoc CLI flags (e.g. ["--toc", "-V", "geometry:margin=1in"]).
+        extra_args:  Optional extra pandoc CLI flags (e.g. ["--toc", "-Vmargin=1in"]).
+                     NOTE: -V must be a single token ("-Vkey=value") — the
+                     two-token "-V key=value" form is rejected by the allowlist.
         category:    Optional subfolder under ~/documents/ (e.g. "reports", "invoices").
 
     Returns:
