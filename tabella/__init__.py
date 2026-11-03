@@ -13,7 +13,36 @@ from pathlib import Path
 
 from .bootstrap import resolve_venv_python
 
-__version__ = "2.0.4"
+
+def _read_version() -> str:
+    """The package version, from installed metadata or pyproject.toml.
+
+    One source: pyproject.toml. Installed distributions read it back from
+    their metadata (so a wheel cannot disagree with itself); a checkout or a
+    plugin directory parses the file beside the package. plugin.json carries
+    its own literal because a manifest must, and tests/test_version_sync.py
+    fails when the two disagree.
+    """
+    # Source tree first: when this file sits next to a pyproject.toml we are
+    # being imported from a checkout, and that file is the version being
+    # edited — installed metadata would still say the previous release.
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    try:
+        for line in pyproject.read_text(encoding="utf-8").splitlines():
+            if line.startswith("version = "):
+                return line.split("=", 1)[1].strip().strip('"')
+    except OSError:
+        pass
+    # Installed from a wheel/sdist: the built metadata is authoritative.
+    try:
+        from importlib.metadata import version
+
+        return version("tabella-docs")
+    except Exception:
+        return "0+unknown"
+
+
+__version__ = _read_version()
 
 # ── Configuration ─────────────────────────────────────────────
 
