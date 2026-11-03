@@ -22,6 +22,7 @@ import importlib
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -59,7 +60,7 @@ def test_fetcher_blocks_host_files_and_network():
     for url in ("file:///etc/passwd", "file://c/evil.svg",
                 "http://evil.example/x.png", "https://evil.example/x.css",
                 "//evil.example/x.png"):
-        with pytest.raises(ValueError, match="blocked external URL"):
+        with pytest.raises(ValueError, match="blocked"):
             fetcher(url)
 
 
@@ -84,8 +85,35 @@ def test_fetcher_allows_data_uri():
 ])
 def test_fetcher_rejects_non_image_data_uris(evil):
     fetcher = _safe_url_fetcher(None)
-    with pytest.raises(ValueError, match="blocked external URL"):
+    with pytest.raises(ValueError, match="blocked"):
         fetcher(evil)
+
+
+@pytest.mark.parametrize("payload", [
+    # Pillow dispatches on the bytes, not the declared type: EPS behind an
+    # image/png label still reaches EpsImagePlugin. The fetcher sniffs magic.
+    "data:image/png;base64,JSFQUy1BZG9iZS0zLjAgRVBTRi0zLjA=",
+    "data:image/svg+xml;base64,JSFQUw==",
+    "data:image/png,%25!PS-Adobe-3.0",  # %25 = a literal "%"
+])
+def test_fetcher_rejects_postscript_payload_hidden_in_an_allowed_type(payload):
+    fetcher = _safe_url_fetcher(None)
+    with pytest.raises(ValueError, match="PostScript"):
+        fetcher(payload)
+
+
+def test_fetcher_confines_file_urls_to_the_font_tmp_dir(tmp_path):
+    """Prefix matching would let <tmp>_evil/ through; containment must be by resolved path."""
+    fonts = tmp_path / "t_abc"
+    sibling = tmp_path / "t_abc_evil"
+    fonts.mkdir()
+    sibling.mkdir()
+    (sibling / "secret.txt").write_text("TOP-SECRET")
+    (fonts / "ok.woff").write_bytes(b"wOF2")
+
+    fetcher = _safe_url_fetcher(SimpleNamespace(tmp_directory=str(fonts)))
+    with pytest.raises(ValueError, match="outside the font temp directory"):
+        fetcher("file://" + str(sibling / "secret.txt"))
 
 
 # ── Gate 3: format-name grammar (ported from the retired test_security.py) ──
