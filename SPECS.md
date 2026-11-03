@@ -4,7 +4,7 @@
 
 Three independent modules, each with its own engine(s):
 
-### Read (`agent_docs.read`)
+### Read (`tabella.read`)
 
 Two-engine dispatch — anydoc primary, LiteParse fallback:
 
@@ -31,7 +31,7 @@ Dispatch logic:
 
 Tools: `doc_read(path, max_chars, extract_images)`, `doc_read_meta(path)`
 
-### Create (`agent_docs.create`)
+### Create (`tabella.create`)
 
 Structured JSON or raw HTML/CSS → document:
 
@@ -52,7 +52,7 @@ PDF generation supports two modes:
 
 Tool: `doc_create_document(format, content, output_path, options)`
 
-### Convert (`agent_docs.convert`)
+### Convert (`tabella.convert`)
 
 Pandoc-based format conversion:
 
@@ -62,7 +62,7 @@ Pandoc-based format conversion:
 
 Tool: `doc_convert(src, to_format, output_path)`
 
-### Edit (`agent_docs.create`)
+### Edit (`tabella.create`)
 
 PDF text editing via PyMuPDF search-and-replace:
 

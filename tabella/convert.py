@@ -10,6 +10,7 @@ import json
 import logging
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -25,6 +26,44 @@ def _check_deps(needs_tex: bool = False) -> Optional[str]:
     if needs_tex and not shutil.which("pdflatex") and not shutil.which("xelatex"):
         return "No LaTeX engine found. Install texlive (e.g. `sudo apt install texlive-xetex`)."
     return None
+
+
+def _extract_pdf(src: Path) -> str:
+    """Extract a PDF's text through the read lane (anydoc, then OCR).
+
+    pandoc has no PDF reader — it converts *to* PDF only. Routing through
+    read() means a text layer is used when present and a scanned page is
+    OCR'd when not, so `doc_convert(x.pdf, "docx")` behaves like the user
+    expects instead of failing inside pandoc.
+    """
+    from .read import read
+
+    return read(str(src))
+
+
+def _validate_extra_args(extra_args: Optional[list]) -> list:
+    """Strict allowlist for pandoc flags.
+
+    pandoc can execute code via --filter/--lua-filter/--pdf-engine, so only
+    formatting flags survive (catalog review #2026-10-16, finding 1). Runs
+    before the dependency check so a hostile flag is rejected as invalid,
+    not masked by "pandoc is not installed".
+    """
+    if not extra_args:
+        return []
+    allowed = {"--toc", "--number-sections"}
+    checked = []
+    for a in extra_args:
+        if a in allowed:
+            checked.append(a)
+        elif re.match(r"^-V\S*=", a):
+            checked.append(a)
+        else:
+            raise ValueError(
+                f"unsupported pandoc argument {a!r}: extra_args allows only "
+                "--toc, --number-sections and -V <key>=<value>"
+            )
+    return checked
 
 
 def _pdf_engine() -> str:
@@ -70,11 +109,33 @@ def doc_convert(
     tgt_fmt = to_format.lower()
     _check_format(src_fmt, "from_format")
     _check_format(tgt_fmt, "to_format")
+    extra = _validate_extra_args(extra_args)
 
     # pandoc is always required; a TeX engine only for pdf output
     dep_err = _check_deps(tgt_fmt == "pdf")
     if dep_err:
         return {"success": False, "error": dep_err}
+
+    # pandoc converts to PDF, never from it: extract the text first, then
+    # convert the extracted markdown. Scanned pages come back OCR'd, so this
+    # works where a bare `pandoc -f pdf` cannot exist at all.
+    pandoc_src, pandoc_fmt, tmp_md = str(src), src_fmt, None
+    if src_fmt == "pdf":
+        try:
+            text = _extract_pdf(src)
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"could not extract text from PDF: {type(e).__name__}: {e}",
+            }
+        if not text.strip():
+            return {"success": False, "error": f"PDF has no extractable text: {src}"}
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".md", delete=False, encoding="utf-8"
+        ) as fh:
+            fh.write(text)
+            tmp_md = fh.name
+        pandoc_src, pandoc_fmt = tmp_md, "markdown"
 
     # Determine output path
     if output_path:
@@ -94,25 +155,11 @@ def doc_convert(
         )
 
     # Build pandoc command
-    cmd = ["pandoc", str(src), "-o", str(out_file), "-f", src_fmt, "-t", tgt_fmt]
+    cmd = ["pandoc", pandoc_src, "-o", str(out_file), "-f", pandoc_fmt, "-t", tgt_fmt]
     if tgt_fmt == "pdf":
         engine = _pdf_engine()
         cmd.extend(["--pdf-engine", engine])
-    if extra_args:
-        # strict allowlist — pandoc can execute arbitrary code via --filter/
-        # --lua-filter/--pdf-engine, so only formatting flags are honored
-        # (catalog review #2026-10-16, finding 1).
-        allowed = {"--toc", "--number-sections"}
-        for a in extra_args:
-            if a in allowed:
-                cmd.append(a)
-            elif re.match(r"^-V\S*=", a):
-                cmd.append(a)
-            else:
-                raise ValueError(
-                    f"unsupported pandoc argument {a!r}: extra_args allows only "
-                    "--toc, --number-sections and -V <key>=<value>"
-                )
+    cmd.extend(extra)
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -125,6 +172,9 @@ def doc_convert(
         return {"success": False, "error": "pandoc timed out after 5 minutes."}
     except Exception as e:
         return {"success": False, "error": f"pandoc error: {e}"}
+    finally:
+        if tmp_md:
+            Path(tmp_md).unlink(missing_ok=True)
 
     if not out_file.exists():
         return {"success": False, "error": f"Output file was not created: {out_file}"}
@@ -134,6 +184,7 @@ def doc_convert(
         "output_path": str(out_file),
         "from_format": src_fmt,
         "to_format": tgt_fmt,
+        "extracted_text": src_fmt == "pdf",
         "pdf_engine": _pdf_engine() if tgt_fmt == "pdf" else None,
         "message": f"MEDIA:{out_file}\n\nConverted {src.name} → {tgt_fmt}: {out_file}",
     }
@@ -144,7 +195,9 @@ def _infer_format(ext: str) -> str:
     mapping = {
         "md": "markdown",
         "markdown": "markdown",
-        "txt": "plain",
+        # pandoc has no "plain" *reader*; markdown is the closest faithful
+        # reading of a text file (headings/lists if present, prose otherwise).
+        "txt": "markdown",
         "html": "html",
         "htm": "html",
         "docx": "docx",

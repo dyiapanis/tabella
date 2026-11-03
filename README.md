@@ -93,9 +93,10 @@ sections, sheets, slides, tables, images, and page breaks.
 ### Convert
 
 Format conversion via pandoc + LaTeX (page size, margins, headers/footers
-configurable). **Pandoc 3.1 supports 44 input and 54 output formats** —
-`doc_convert` passes your `from`/`to` through, so all of them work. The
-everyday set:
+configurable). **Pandoc 3.1.11 reports 44 input and 65 output formats** —
+`doc_convert` passes your `from`/`to` through, so all of them work. (The counts
+move between pandoc minors; run `pandoc --list-input-formats` to check yours.)
+The everyday set:
 
 | Format | In | Out | Notes |
 |---|---|---|---|
@@ -103,13 +104,13 @@ everyday set:
 | HTML | ✅ | ✅ | html4/html5, chunkedhtml |
 | DOCX (Word) | ✅ | ✅ | |
 | ODT | ✅ | ✅ | + `opendocument` |
-| PDF | ✅ | ✅ | in: text-based PDFs (pandoc's pdf reader); out: needs `pdflatex`/`xelatex` (texlive) — engine auto-selected |
+| PDF | ✅ | ✅ | in: pandoc cannot read PDF, so the text layer is extracted first (OCR when the page is a scan) and the result is converted; out: needs `pdflatex`/`xelatex` (texlive) — engine auto-selected |
 | LaTeX (`.tex`) | ✅ | ✅ | incl. beamer slides out |
 | RST | ✅ | ✅ | |
 | EPUB | ✅ | ✅ | out: epub2/epub3 |
 | CSV / TSV | ✅ | ✅ | out via markdown/AST route |
 | RTF | ✅ | ✅ | |
-| Plain text (`.txt`) | ✅ | ✅ | |
+| Plain text (`.txt`) | ✅ | ✅ | read as markdown — pandoc has no `plain` *reader*, so headings and lists in a `.txt` survive |
 | Org-mode, MediaWiki, Jira wiki, Textile, DocBook, FB2, OPML, IPynb, JATS | ✅ | ✅ | writers for most |
 | Typst / man / ms / texinfo / AsciiDoc | ✅ | ✅ | typst in+out |
 | Presentations | — | ✅ | beamer, revealjs, slidy, s5, dzslides (from any reader, Markdown especially) |
@@ -193,7 +194,7 @@ brew install cairo pango gdk-pixbuf
 
 ### Windows
 
-tabella runs natively on Windows 10/11 (64-bit, Python 3.10+); all five MCP
+tabella runs natively on Windows 10/11 (64-bit, Python 3.11+); all five MCP
 tools are exercised on `windows-latest` in CI. Native dependencies, installed
 per feature:
 
@@ -242,7 +243,7 @@ required. The bootstrap runs once; subsequent startups use the existing venv.
 ### Create a PDF from HTML/CSS
 
 ```python
-from agent_docs.create import create_document
+from tabella.create import create_document
 
 result = create_document(
     format="pdf",
@@ -255,7 +256,7 @@ result = create_document(
 ### Read a DOCX file
 
 ```python
-from agent_docs.read import read
+from tabella.read import read
 
 text = read("/path/to/document.docx")
 # Returns GitHub-Flavored Markdown
@@ -264,7 +265,7 @@ text = read("/path/to/document.docx")
 ### Convert Markdown to PDF
 
 ```python
-from agent_docs.convert import doc_convert
+from tabella.convert import doc_convert
 
 result = doc_convert(
     input_path="/path/to/input.md",
