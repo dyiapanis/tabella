@@ -23,19 +23,6 @@ TEXT_SUFFIXES = {
     ".rst", ".fountain", ".log", ".py", ".js", ".ts", ".css",
 }
 
-# Formats anydoc handles (office + text PDF).
-# Source: anydoc README — supported formats table.
-ANYDOC_SUFFIXES = {
-    ".doc", ".docx", ".docm",
-    ".ppt", ".pps", ".pot", ".pptx", ".pptm", ".ppsx", ".ppsm",
-    ".xls", ".xlsx", ".xlsm", ".xlsb",
-    ".odt", ".ods", ".odp",
-    ".rtf",
-    ".epub",
-    ".pdf",
-    ".csv",
-}
-
 # Image formats that need OCR (LiteParse + Tesseract).
 IMAGE_SUFFIXES = {
     ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".bmp", ".gif",
@@ -121,36 +108,36 @@ def read(path: str, max_chars: Optional[int] = None, extract_images: bool = True
             text = text[:max_chars]
         return text
 
-    # 3. Office formats + PDFs → anydoc first
-    if suffix in ANYDOC_SUFFIXES or suffix not in TEXT_SUFFIXES:
-        text = ""
-        anydoc_error = None
+    # 3. Everything left — office formats, PDFs, unknown extensions → anydoc.
+    #    (Text returned above, so the old `or suffix not in TEXT_SUFFIXES`
+    #    tail was dead.)
+    text = ""
+    anydoc_error = None
+    try:
+        text = _run_anydoc(path)
+    except Exception as e:
+        # A fallback boundary: any primary-engine failure means "try the other
+        # engine". anydoc raises NeedsOcrError for a PDF with no text layer, and
+        # its hierarchy (NeedsOcrError -> ConvertError -> Exception) is theirs,
+        # not ours — enumerating it is what made the OCR lane unreachable for
+        # scanned PDFs.
+        anydoc_error = f"{type(e).__name__}: {e}"
+
+    # 4. No text layer (scanned PDF) or anydoc failed → LiteParse OCR
+    if not text.strip():
         try:
-            text = _run_anydoc(path)
-        except Exception as e:
-            # A fallback boundary: any primary-engine failure means "try the
-            # other engine". anydoc raises NeedsOcrError for a PDF with no text
-            # layer, and its hierarchy (NeedsOcrError -> ConvertError ->
-            # Exception) is theirs, not ours — enumerating it is what made the
-            # OCR lane below unreachable for scanned PDFs.
-            anydoc_error = f"{type(e).__name__}: {e}"
+            data = _run_liteparse(path, extract_images=extract_images)
+            text = data.get("text") or ""
+        except Exception as liteparse_err:
+            if anydoc_error:
+                raise RuntimeError(
+                    f"anydoc failed: {anydoc_error}; liteparse fallback also failed: {liteparse_err}"
+                )
+            raise RuntimeError(f"both anydoc and liteparse returned no text. liteparse: {liteparse_err}")
 
-        # 4. If anydoc returned empty text (scanned PDF) or failed, try LiteParse OCR
-        if not text.strip():
-            try:
-                data = _run_liteparse(path, extract_images=extract_images)
-                text = data.get("text") or ""
-            except Exception as liteparse_err:
-                if anydoc_error:
-                    raise RuntimeError(f"anydoc failed: {anydoc_error}; liteparse fallback also failed: {liteparse_err}")
-                raise RuntimeError(f"both anydoc and liteparse returned no text. liteparse: {liteparse_err}")
-
-        if max_chars:
-            text = text[:max_chars]
-        return text
-
-    # Fallback: unknown format, try plain text read
-    return _read_text(path, max_chars)
+    if max_chars:
+        text = text[:max_chars]
+    return text
 
 
 def read_meta(path: str) -> Dict[str, Any]:
