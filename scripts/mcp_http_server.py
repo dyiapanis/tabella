@@ -349,7 +349,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if method == "initialize":
                 res = {"protocolVersion": PROTOCOL, "capabilities": {"tools": {}},
-                       "serverInfo": {"name": "tabella", "version": "2.0.3"},
+                       "serverInfo": {"name": "tabella", "version": "2.0.4"},
                        "instructions": "Document lifecycle suite. Tools: doc_read, "
                                        "doc_read_meta, doc_convert, doc_create_document, "
                                        "doc_edit_pdf."}

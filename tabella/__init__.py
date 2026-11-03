@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .bootstrap import resolve_venv_python
 
-__version__ = "2.0.3"
+__version__ = "2.0.4"
 
 # ── Configuration ─────────────────────────────────────────────
 
