@@ -26,46 +26,96 @@ _DATA_MIME_ALLOW = frozenset({
 
 
 def _data_mime_allowed(url: str) -> bool:
-    """Only data: URIs of formats whose decoding we can vouch for.
-
-    WeasyPrint hands fetched bytes to a format-agnostic Pillow open, so an
-    `image/*`-shaped data URI carrying EPS/PS reaches Ghostscript (RCE when a
-    gs binary is installed with a -dSAFER bypass). The dependency bump closes
-    the known advisory; this allowlist closes the class at the fetcher, which
-    is the layer we control.
-    """
+    """Only data: URIs of formats whose decoding we can vouch for."""
     head = url[len("data:"):].split(",", 1)[0]
     return head.split(";", 1)[0].strip().lower() in _DATA_MIME_ALLOW
+
+
+def _data_payload_head(url: str, n: int = 16) -> bytes:
+    """First bytes of a data: URI payload, for magic-number sniffing."""
+    import base64
+    from urllib.parse import unquote_to_bytes
+
+    head, _, payload = url[len("data:"):].partition(",")
+    if "base64" in head.lower():
+        # A slice whose length is a multiple of 4 decodes without hand-padding
+        # ("===" is not valid padding and makes b64decode raise, which would
+        # silently turn every base64 data: URI into an empty head).
+        take = ((n + 2) // 3) * 4
+        try:
+            return base64.b64decode(payload[:take])[:n]
+        except Exception:
+            return b""
+    return unquote_to_bytes(payload[: n * 3])[:n]
+
+
+def _is_postscript(head: bytes) -> bool:
+    """PostScript/EPS magic. Pillow dispatches on bytes, not on the declared MIME."""
+    return head.lstrip()[:4] == b"%!PS"
+
+
+def _in_tmp_dir(url: str, tmp_root) -> bool:
+    """Real path containment for WeasyPrint's own font temp files."""
+    from pathlib import Path as _P
+    from urllib.parse import unquote, urlparse
+
+    try:
+        candidate = _P(unquote(urlparse(url).path)).resolve()
+    except Exception:
+        return False
+    try:
+        return candidate.is_relative_to(tmp_root)
+    except Exception:
+        return False
 
 
 def _safe_url_fetcher(font_config):
     """URL fetcher for model-supplied HTML: refuse network + host filesystem.
 
-    Only allowlisted data: URIs and WeasyPrint's own font temp-file references
-    resolve — <img src>, @import and file:// against anything else raise
-    (catalog review finding 2: 'no network' must be true, not a wording
-    promise).
+    Three gates, because a declared MIME type proves nothing about the bytes
+    behind it:
 
-    WeasyPrint 70 removed ``default_url_fetcher``; the supported seam is a
-    ``URLFetcher`` subclass, whose ``fetch`` is what every resource load
-    routes through.
+    1. Only allowlisted `data:` types pass — anything else raises.
+    2. The payload's magic number is checked, so PostScript/EPS inside an
+       `image/png` wrapper is refused. That is the actual hazard: WeasyPrint
+       hands image bytes to a format-agnostic `PIL.Image.open`, and older
+       releases let EPS reach Ghostscript.
+    3. `file:` resolves only inside WeasyPrint's own font temp directory, by
+       resolved path containment rather than string prefix.
+
+    WeasyPrint 70 additionally disables the EPS handler outright; these gates
+    are what keep the property true if that ever changes.
     """
     from pathlib import Path as _P
     from weasyprint.urls import URLFetcher
 
     tmp_dir = str(getattr(font_config, "tmp_directory", "") or "")
-    tmp_prefix = _P(tmp_dir).resolve().as_posix() if tmp_dir else ""
+    tmp_root = _P(tmp_dir).resolve() if tmp_dir else None
+    allowed_types = ", ".join(sorted(_DATA_MIME_ALLOW))
 
     class Guarded(URLFetcher):
         def fetch(self, url, *a, **kw):
-            allowed = url.startswith("data:") and _data_mime_allowed(url)
-            if not allowed and tmp_prefix and url.startswith("file:"):
-                allowed = url[len("file:"):].lstrip("/").startswith(tmp_prefix.lstrip("/"))
-            if not allowed:
+            if url.startswith("data:"):
+                if not _data_mime_allowed(url):
+                    raise ValueError(
+                        f"blocked data: URI of a type that is not allowed "
+                        f"({allowed_types}): {url[:60]!r}"
+                    )
+                if _is_postscript(_data_payload_head(url)):
+                    raise ValueError(
+                        "blocked PostScript/EPS payload hidden in a data: URI "
+                        f"({url[:60]!r})"
+                    )
+            elif tmp_root is not None and url.startswith("file:"):
+                if not _in_tmp_dir(url, tmp_root):
+                    raise ValueError(
+                        f"blocked file: URL outside the font temp directory: {url[:80]!r}"
+                    )
+            else:
                 raise ValueError(
                     f"blocked external URL in HTML: {url[:80]!r} — network and "
                     "host-file access are disabled; use embedded data: URIs of "
-                    f"an allowed type ({', '.join(sorted(_DATA_MIME_ALLOW))})"
+                    f"an allowed type ({allowed_types})"
                 )
             return super().fetch(url, *a, **kw)
 
@@ -363,7 +413,9 @@ def _build_odt(content: dict, output_path: str, template: str = None, options: d
             elif stype == "table":
                 rows = section.get("rows", [])
                 headers = section.get("headers", [])
-                num_cols = max(1, len(headers) or (len(rows[0]) if rows else 1))
+                # Width across headers and EVERY row — sizing from rows[0]
+                # alone silently drops later cells that are wider.
+                num_cols = max([1, len(headers)] + [len(r) for r in rows])
                 table = Table()
                 # Header row then body rows, each cell carrying its value —
                 # an empty grid with success:true is silent data loss.
@@ -371,9 +423,9 @@ def _build_odt(content: dict, output_path: str, template: str = None, options: d
                 for row in body:
                     tr = TableRow()
                     for c in range(num_cols):
-                        tc = TableCell()
                         cell = row[c] if c < len(row) else ""
-                        tc.addElement(P(text=str(cell)))
+                        tc = TableCell()
+                        tc.addElement(P(text="" if cell is None else str(cell)))
                         tr.addElement(tc)
                     table.addElement(tr)
                 doc.text.addElement(table)

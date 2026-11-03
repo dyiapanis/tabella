@@ -92,5 +92,5 @@ Tool: `doc_edit_pdf(path, page, instruction, output_path)`
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `DOCS_VENV_PYTHON` | Path to docs venv Python binary | `~/.venvs/docs/bin/python` |
-| `DOCS_OUTPUT_DIR` | Default output directory for documents | `~/documents` |
+| `DOCS_VENV_PYTHON` | Path to docs venv Python binary | `~/.venvs/docs/venv/bin/python` |
+| `DOCS_OUTPUT_DIR` | Default output directory for documents | `~/Documents` |
