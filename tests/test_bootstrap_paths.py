@@ -7,6 +7,7 @@ pin the *contract* (the returned interpreter is the one the bootstrap command
 creates) rather than a literal path, so the two can't drift apart again.
 """
 import os
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -112,6 +113,28 @@ def test_interrupted_install_is_not_mistaken_for_a_ready_venv(monkeypatch, tmp_p
     assert any(cmd[0] == "bash" for cmd in calls), "a half-built venv must trigger the installer"
     marker = tmp_path / ".venvs" / "docs" / "venv" / ".tabella-deps-ok"
     assert marker.exists(), "a completed install must leave the sentinel"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX bootstrap path")
+def test_hung_probe_is_not_ready_rather_than_a_crash(monkeypatch, tmp_path):
+    """A wedged venv interpreter must fall through to the installer, not raise."""
+    monkeypatch.delenv("PLUGIN_DATA", raising=False)
+    monkeypatch.delenv("DOCS_VENV_PYTHON", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    py = tmp_path / ".venvs" / "docs" / "venv" / "bin" / "python"
+    py.parent.mkdir(parents=True)
+    py.write_text("")
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        if "-c" in cmd:
+            raise subprocess.TimeoutExpired(cmd, 120)
+        return SimpleNamespace(returncode=0, stderr="", stdout="")
+
+    monkeypatch.setattr(bootstrap.subprocess, "run", fake_run)
+    assert bootstrap.ensure_venv() == str(py)  # returns, does not raise
+    assert any(cmd[0] == "bash" for cmd in calls), "a hung probe must trigger the installer"
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX path layout")

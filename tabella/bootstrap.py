@@ -62,12 +62,21 @@ def _venv_ready(venv_python: str) -> bool:
     marker = Path(venv_python).parent.parent / ".tabella-deps-ok"
     if marker.exists():
         return True
-    probe = subprocess.run(
-        [venv_python, "-c", "import docx, odf"],
-        capture_output=True, text=True, timeout=120,
-    )
+    # weasyprint is deliberately absent from this probe: importing it needs
+    # pango/GTK, which a host may legitimately lack (PDF then fails at call
+    # time with a clear error). Everything else is pure Python or bundled.
+    try:
+        probe = subprocess.run(
+            [venv_python, "-c", "import docx, openpyxl, pptx, odf, anydoc, liteparse, pymupdf"],
+            capture_output=True, text=True, timeout=120,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False  # hung or unexecutable: treat as not ready, rebuild
     if probe.returncode == 0:
-        marker.write_text("")
+        try:
+            marker.write_text("")
+        except OSError:
+            pass  # a read-only venv is still usable; the probe will run again
         return True
     return False
 
