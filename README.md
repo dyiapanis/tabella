@@ -140,8 +140,8 @@ Set `DOCS_VENV_PYTHON` to point to it:
 
 ```bash
 # Create a dedicated venv
-python -m venv ~/.venvs/docs
-~/.venvs/docs/bin/pip install python-docx openpyxl python-pptx weasyprint odfpy Pillow lxml PyMuPDF firecrawl-anydoc liteparse
+python -m venv ~/.venvs/docs/venv
+~/.venvs/docs/venv/bin/pip install python-docx openpyxl python-pptx weasyprint odfpy Pillow lxml PyMuPDF firecrawl-anydoc liteparse
 ```
 
 Or install the libraries into your main Python environment:
@@ -153,7 +153,7 @@ pip install tabella-docs[create]
 ### Read module
 
 ```bash
-~/.venvs/docs/bin/pip install firecrawl-anydoc liteparse PyMuPDF
+~/.venvs/docs/venv/bin/pip install firecrawl-anydoc liteparse PyMuPDF
 ```
 
 Or:
@@ -220,7 +220,7 @@ pip install -e ".[all]"
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `DOCS_VENV_PYTHON` | Python binary for document libraries | `PLUGIN_DATA/venv/bin/python` or `~/.venvs/docs/bin/python` |
+| `DOCS_VENV_PYTHON` | Python binary for document libraries | `PLUGIN_DATA/venv/bin/python` or `~/.venvs/docs/venv/bin/python` |
 | `DOCS_OUTPUT_DIR` | Default output directory for generated documents | `~/Documents` |
 | `PLUGIN_DATA` | Client-managed data directory (set by v1 client) | — |
 | `PLUGIN_ROOT` | Plugin root directory (set by v1 client) | — |
