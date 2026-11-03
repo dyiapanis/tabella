@@ -5,18 +5,21 @@ chain unchecked (docx/odt) → silent EMPTY document. PDF handled it; the
 document builders did not. Fix: normalize "text" → "paragraph" at the section
 loop in both builders.
 
-Run: python3 tests/test_text_section_alias.py  (needs docs venv python for
-python-docx / odfpy imports)
+Run: python3 -m pytest tests/test_text_section_alias.py  (needs the [create]
+extra for python-docx / odfpy; skips cleanly without it)
 """
 import os
 import sys
 import tempfile
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from tabella.create import create_document  # noqa: E402
 
 
 def test_docx_text_alias():
+    pytest.importorskip("docx")  # [create] extra; CI installs it
     from docx import Document
 
     with tempfile.TemporaryDirectory() as d:
@@ -32,6 +35,7 @@ def test_docx_text_alias():
 
 
 def test_odt_text_alias():
+    pytest.importorskip("odf.opendocument")  # [create] extra; CI installs it
     from odf.opendocument import load
     from odf import text as odftext, teletype
 
@@ -48,6 +52,7 @@ def test_odt_text_alias():
 
 
 def test_docx_known_types_regress_none():
+    pytest.importorskip("docx")
     from docx import Document
 
     with tempfile.TemporaryDirectory() as d:

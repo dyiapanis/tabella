@@ -1,0 +1,57 @@
+name: tests
+# The pytest lane. Unlike windows-smoke (push-only, heavy), this runs on every
+# pull request so the release-lane ruleset has a check to gate on.
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # pandoc is a documented system requirement, and the extra_args
+      # allowlist tests assert on doc_convert's rejection — which only runs
+      # after the dependency check. Without pandoc they fail rather than skip.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq pandoc
+
+      # [all] so the create/read/extract lanes are actually exercised instead
+      # of skipping on missing imports. WeasyPrint imports without libpango
+      # here; the render lane is windows-smoke's job.
+      - run: python -m pip install -e '.[all]' pytest
+
+      - run: python -m pytest tests/ -q
+
+  bootstrap:
+    # Cold-start lane: no PLUGIN_DATA, empty HOME — the documented fallback
+    # path, and the one where 2.0.2 handed back an interpreter that did not
+    # exist. A pre-provisioned interpreter cannot catch this class of bug.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cold bootstrap through ensure_venv
+        run: |
+          python - <<'PY'
+          import os, pathlib, subprocess, sys
+          os.environ.pop("PLUGIN_DATA", None)
+          os.environ.pop("DOCS_VENV_PYTHON", None)
+          sys.path.insert(0, ".")
+          from tabella.bootstrap import ensure_venv
+          py = ensure_venv()
+          print("ensure_venv ->", py)
+          assert pathlib.Path(py).exists(), "bootstrap returned a non-existent interpreter"
+          subprocess.run([py, "-c", "import docx, openpyxl, pptx, weasyprint, odf, fitz, anydoc, liteparse"], check=True)
+          print("cold bootstrap ok: every documented dependency imports")
+          PY

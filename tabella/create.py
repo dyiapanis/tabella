@@ -18,29 +18,122 @@ from .utils import _get_output_dir, _is_in_output_dir, _resolve_output_dir
 logger = logging.getLogger(__name__)
 
 
+_DATA_MIME_ALLOW = frozenset({
+    "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
+    # fonts are rendered by WeasyPrint's own text stack, not by Pillow
+    "font/woff", "font/woff2", "font/ttf", "font/otf",
+})
+
+
+def _data_mime_allowed(url: str) -> bool:
+    """Only data: URIs of formats whose decoding we can vouch for."""
+    head = url[len("data:"):].split(",", 1)[0]
+    return head.split(";", 1)[0].strip().lower() in _DATA_MIME_ALLOW
+
+
+# Pillow's EpsImagePlugin._accept takes either the PostScript text magic or the
+# DOS EPS binary header (little-endian 0xC6D3D0C5, i.e. these bytes).
+_EPS_MAGICS = (b"%!PS", b"\xc5\xd0\xd3\xc6")
+
+
+def _data_payload_head(url: str, n: int = 32) -> bytes:
+    """First bytes of a data: URI payload, decoded the way the consumer decodes it.
+
+    WeasyPrint fetches data: URIs through urllib's DataHandler: it percent-
+    unquotes the payload first, then base64-decodes MIME-tolerantly (whitespace
+    ignored). A sniffer that slices the raw string decodes something else
+    entirely — a newline after character four or a percent-encoded alphabet is
+    enough to make it see b"" while urllib still delivers the real bytes.
+    """
+    import base64
+    from urllib.parse import unquote_to_bytes
+
+    head, _, payload = url[len("data:"):].partition(",")
+    raw = unquote_to_bytes(payload)
+    if "base64" in head.lower():
+        compact = bytes(b for b in raw if b not in b" \t\r\n")
+        take = ((n + 2) // 3) * 4
+        chunk = compact[:take]
+        chunk += b"=" * (-len(chunk) % 4)
+        try:
+            return base64.b64decode(chunk)[:n]
+        except Exception:
+            return b""
+    return raw[:n]
+
+
+def _is_postscript(head: bytes) -> bool:
+    """PostScript/EPS magic. Pillow dispatches on bytes, not on the declared MIME."""
+    stripped = head.lstrip()
+    return any(stripped.startswith(magic) for magic in _EPS_MAGICS)
+
+
+def _in_tmp_dir(url: str, tmp_root) -> bool:
+    """Real path containment for WeasyPrint's own font temp files."""
+    from pathlib import Path as _P
+    from urllib.parse import unquote, urlparse
+
+    try:
+        candidate = _P(unquote(urlparse(url).path)).resolve()
+    except Exception:
+        return False
+    try:
+        return candidate.is_relative_to(tmp_root)
+    except Exception:
+        return False
+
+
 def _safe_url_fetcher(font_config):
     """URL fetcher for model-supplied HTML: refuse network + host filesystem.
 
-    Only data: URIs and WeasyPrint's own font temp-file references resolve
-    — <img src>, @import and file:// against anything else raise (catalog
-    review finding 2: 'no network' must be true, not a wording promise).
+    Three gates, because a declared MIME type proves nothing about the bytes
+    behind it:
+
+    1. Only allowlisted `data:` types pass — anything else raises.
+    2. The payload's magic number is checked, so PostScript/EPS inside an
+       `image/png` wrapper is refused. That is the actual hazard: WeasyPrint
+       hands image bytes to a format-agnostic `PIL.Image.open`, and older
+       releases let EPS reach Ghostscript.
+    3. `file:` resolves only inside WeasyPrint's own font temp directory, by
+       resolved path containment rather than string prefix.
+
+    WeasyPrint 70 additionally disables the EPS handler outright; these gates
+    are what keep the property true if that ever changes.
     """
     from pathlib import Path as _P
+    from weasyprint.urls import URLFetcher
 
-    def fetch(url, *a, **kw):
-        tmp_dir = str(getattr(font_config, "tmp_directory", "") or "")
-        if url.startswith("data:") or (
-            url.startswith("file:") and tmp_dir
-            and url[len("file://"):].startswith(_P(tmp_dir).resolve().as_posix())
-        ):
-            from weasyprint import default_url_fetcher as _default
-            return _default(url, *a, **kw)
-        raise ValueError(
-            f"blocked external URL in HTML: {url[:80]!r} — network and "
-            "host-file access are disabled; use embedded data: URIs"
-        )
+    tmp_dir = str(getattr(font_config, "tmp_directory", "") or "")
+    tmp_root = _P(tmp_dir).resolve() if tmp_dir else None
+    allowed_types = ", ".join(sorted(_DATA_MIME_ALLOW))
 
-    return fetch
+    class Guarded(URLFetcher):
+        def fetch(self, url, *a, **kw):
+            if url.startswith("data:"):
+                if not _data_mime_allowed(url):
+                    raise ValueError(
+                        f"blocked data: URI of a type that is not allowed "
+                        f"({allowed_types}): {url[:60]!r}"
+                    )
+                if _is_postscript(_data_payload_head(url)):
+                    raise ValueError(
+                        "blocked PostScript/EPS payload hidden in a data: URI "
+                        f"({url[:60]!r})"
+                    )
+            elif tmp_root is not None and url.startswith("file:"):
+                if not _in_tmp_dir(url, tmp_root):
+                    raise ValueError(
+                        f"blocked file: URL outside the font temp directory: {url[:80]!r}"
+                    )
+            else:
+                raise ValueError(
+                    f"blocked external URL in HTML: {url[:80]!r} — network and "
+                    "host-file access are disabled; use embedded data: URIs of "
+                    f"an allowed type ({allowed_types})"
+                )
+            return super().fetch(url, *a, **kw)
+
+    return Guarded()
 
 
 def _css_escape(s: str) -> str:
@@ -334,15 +427,19 @@ def _build_odt(content: dict, output_path: str, template: str = None, options: d
             elif stype == "table":
                 rows = section.get("rows", [])
                 headers = section.get("headers", [])
-                total_rows = len(rows) + (1 if headers else 0)
-                num_cols = max(1, len(headers) or (len(rows[0]) if rows else 1))
+                # Width across headers and EVERY row — sizing from rows[0]
+                # alone silently drops later cells that are wider.
+                num_cols = max([1, len(headers)] + [len(r) for r in rows])
                 table = Table()
-                for r in range(total_rows):
+                # Header row then body rows, each cell carrying its value —
+                # an empty grid with success:true is silent data loss.
+                body = ([headers] if headers else []) + list(rows)
+                for row in body:
                     tr = TableRow()
                     for c in range(num_cols):
+                        cell = row[c] if c < len(row) else ""
                         tc = TableCell()
-                        p = P(text="")
-                        tc.addElement(p)
+                        tc.addElement(P(text="" if cell is None else str(cell)))
                         tr.addElement(tc)
                     table.addElement(tr)
                 doc.text.addElement(table)
@@ -594,7 +691,7 @@ def create_document(format: str, content, output_path: str, template: str = None
 def _edit_pdf_text(path: str, page: int, instruction: str, output_path: str = None) -> dict:
     """Edit PDF text via pymupdf search-and-replace (no LLM, provider-agnostic)."""
     try:
-        import fitz  # pymupdf
+        import pymupdf as fitz  # PyMuPDF >= 1.24 exposes the canonical name
     except ImportError:
         return {"success": False, "error": "pymupdf not installed."}
 
