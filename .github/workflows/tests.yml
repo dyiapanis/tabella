@@ -1,0 +1,30 @@
+name: tests
+# The pytest lane. Unlike windows-smoke (push-only, heavy), this runs on every
+# pull request so the release-lane ruleset has a check to gate on.
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # pandoc is a documented system requirement, and the extra_args
+      # allowlist tests assert on doc_convert's rejection — which only runs
+      # after the dependency check. Without pandoc they fail rather than skip.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq pandoc
+
+      # [all] so the create/read/extract lanes are actually exercised instead
+      # of skipping on missing imports. WeasyPrint imports without libpango
+      # here; the render lane is windows-smoke's job.
+      - run: python -m pip install -e '.[all]' pytest
+
+      - run: python -m pytest tests/ -q
