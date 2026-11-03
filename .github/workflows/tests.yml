@@ -17,6 +17,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      # pandoc is a documented system requirement, and the extra_args
+      # allowlist tests assert on doc_convert's rejection — which only runs
+      # after the dependency check. Without pandoc they fail rather than skip.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq pandoc
+
       # [all] so the create/read/extract lanes are actually exercised instead
       # of skipping on missing imports. WeasyPrint imports without libpango
       # here; the render lane is windows-smoke's job.
