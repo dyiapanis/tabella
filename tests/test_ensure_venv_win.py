@@ -81,6 +81,9 @@ def test_windows_layout_and_commands(monkeypatch, tmp_path):
 
     def fake_run(cmd, **kw):
         calls.append(cmd)
+        if cmd[1:3] == ["-m", "venv"]:  # `python -m venv` leaves an interpreter
+            (venv_dir / "Scripts").mkdir(parents=True, exist_ok=True)
+            (venv_dir / "Scripts" / "python.exe").write_text("")
         return _Result(0)
 
     monkeypatch.setattr(bootstrap.subprocess, "run", fake_run)

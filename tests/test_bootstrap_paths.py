@@ -101,9 +101,11 @@ def test_interrupted_install_is_not_mistaken_for_a_ready_venv(monkeypatch, tmp_p
 
     def fake_run(cmd, **kw):
         calls.append(cmd)
-        # the import probe fails; the setup script "succeeds"
-        rc = 1 if "-c" in cmd else 0
-        return SimpleNamespace(returncode=rc, stderr="", stdout="")
+        if "-c" in cmd:  # the import probe fails on a half-built venv
+            return SimpleNamespace(returncode=1, stderr="", stdout="")
+        py.parent.mkdir(parents=True, exist_ok=True)  # setup.sh leaves the interpreter
+        py.write_text("")
+        return SimpleNamespace(returncode=0, stderr="", stdout="")
 
     monkeypatch.setattr(bootstrap.subprocess, "run", fake_run)
     assert bootstrap.ensure_venv() == str(py)

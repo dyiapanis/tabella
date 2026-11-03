@@ -86,7 +86,6 @@ def ensure_venv() -> str:
     root.mkdir(parents=True, exist_ok=True)  # ~/.venvs may not exist on a cold host
     venv_dir = root / "venv"
     marker = venv_dir / ".tabella-deps-ok"
-    marker.parent.mkdir(parents=True, exist_ok=True)
     plugin_root = Path(__file__).parent.parent.resolve()
 
     if os.name == "nt":
@@ -110,7 +109,7 @@ def ensure_venv() -> str:
             )
         if result.returncode != 0:
             sys.stderr.write(f"tabella: bootstrap failed: {result.stderr[:500]}\n")
-        else:
+        elif Path(venv_python).exists():
             marker.write_text("")
             sys.stderr.write("tabella: venv ready\n")
         return venv_python
@@ -129,7 +128,7 @@ def ensure_venv() -> str:
     )
     if result.returncode != 0:
         sys.stderr.write(f"tabella: bootstrap failed: {result.stderr[:500]}\n")
-    else:
+    elif Path(venv_python).exists():
         marker.write_text("")
         sys.stderr.write("tabella: venv ready\n")
 
