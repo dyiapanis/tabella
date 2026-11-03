@@ -104,7 +104,8 @@ def read(path: str, max_chars: Optional[int] = None, extract_images: bool = True
       1. Plain text → direct file read (fast path)
       2. Office formats + text PDFs → anydoc (Markdown output)
       3. Images → LiteParse (OCR)
-      4. PDFs that anydoc returns empty → LiteParse (OCR fallback for scanned PDFs)
+      4. PDFs with no text layer — anydoc returns empty or raises NeedsOcrError →
+         LiteParse (OCR fallback for scanned PDFs)
     """
     suffix = Path(path).suffix.lower()
 
@@ -126,15 +127,20 @@ def read(path: str, max_chars: Optional[int] = None, extract_images: bool = True
         anydoc_error = None
         try:
             text = _run_anydoc(path)
-        except (RuntimeError, ImportError) as e:
-            anydoc_error = str(e)
+        except Exception as e:
+            # A fallback boundary: any primary-engine failure means "try the
+            # other engine". anydoc raises NeedsOcrError for a PDF with no text
+            # layer, and its hierarchy (NeedsOcrError -> ConvertError ->
+            # Exception) is theirs, not ours — enumerating it is what made the
+            # OCR lane below unreachable for scanned PDFs.
+            anydoc_error = f"{type(e).__name__}: {e}"
 
         # 4. If anydoc returned empty text (scanned PDF) or failed, try LiteParse OCR
         if not text.strip():
             try:
                 data = _run_liteparse(path, extract_images=extract_images)
                 text = data.get("text") or ""
-            except (RuntimeError, ImportError) as liteparse_err:
+            except Exception as liteparse_err:
                 if anydoc_error:
                     raise RuntimeError(f"anydoc failed: {anydoc_error}; liteparse fallback also failed: {liteparse_err}")
                 raise RuntimeError(f"both anydoc and liteparse returned no text. liteparse: {liteparse_err}")
