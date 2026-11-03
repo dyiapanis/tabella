@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tabella-docs"
-version = "2.0.2"
+version = "2.0.3"
 description = "Portable document lifecycle suite — create (.docx/.xlsx/.pptx/.pdf/.odt/.ods/.odp), convert (pandoc), and read (anydoc + LiteParse OCR) documents. Agent Plugins v1 compatible."
 readme = "README.md"
 license = "MIT"
@@ -31,9 +31,9 @@ create = [
     "python-docx>=1.0,<2.0",
     "openpyxl>=3.1,<4.0",
     "python-pptx>=0.6,<2.0",
-    "weasyprint>=60.0,<70.0",
+    "weasyprint>=60.0,<71.0",
     "odfpy>=1.4,<2.0",
-    "Pillow>=10.0,<13.0",
+    "Pillow>=10.0,<14.0",
     "lxml>=5.0,<7.0",
 ]
 read = [
@@ -46,9 +46,9 @@ all = [
     "python-docx>=1.0,<2.0",
     "openpyxl>=3.1,<4.0",
     "python-pptx>=0.6,<2.0",
-    "weasyprint>=60.0,<70.0",
+    "weasyprint>=60.0,<71.0",
     "odfpy>=1.4,<2.0",
-    "Pillow>=10.0,<13.0",
+    "Pillow>=10.0,<14.0",
     "lxml>=5.0,<7.0",
     "firecrawl-anydoc>=0.1.1,<0.3.0",
     "liteparse>=2.0.0,<3.0.0",

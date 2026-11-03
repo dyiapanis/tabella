@@ -71,6 +71,23 @@ def test_fetcher_allows_data_uri():
     assert result is not None
 
 
+@pytest.mark.parametrize("evil", [
+    # EPS/PS reaches Pillow's format dispatcher and, when a ghostscript binary
+    # is installed, a separate interpreter (GHSA-r543-q48m-4c9j). The fetcher
+    # allowlists image/font MIME types so the class stays closed even if a
+    # future weasyprint regresses.
+    "data:application/postscript;base64,JSFQUy1BZG9iZQ==",
+    "data:application/eps;base64,JSFQUy1BZG9iZQ==",
+    "data:image/eps;base64,JSFQUy1BZG9iZQ==",
+    "data:text/html;base64,PHNjcmlwdD4=",
+    "data:application/octet-stream;base64,AA==",
+])
+def test_fetcher_rejects_non_image_data_uris(evil):
+    fetcher = _safe_url_fetcher(None)
+    with pytest.raises(ValueError, match="blocked external URL"):
+        fetcher(evil)
+
+
 # ── Gate 3: format-name grammar (ported from the retired test_security.py) ──
 
 @pytest.mark.parametrize("evil", [

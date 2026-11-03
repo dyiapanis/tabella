@@ -28,3 +28,30 @@ jobs:
       - run: python -m pip install -e '.[all]' pytest
 
       - run: python -m pytest tests/ -q
+
+  bootstrap:
+    # Cold-start lane: no PLUGIN_DATA, empty HOME — the documented fallback
+    # path, and the one where 2.0.2 handed back an interpreter that did not
+    # exist. A pre-provisioned interpreter cannot catch this class of bug.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cold bootstrap through ensure_venv
+        run: |
+          python - <<'PY'
+          import os, pathlib, subprocess, sys
+          os.environ.pop("PLUGIN_DATA", None)
+          os.environ.pop("DOCS_VENV_PYTHON", None)
+          sys.path.insert(0, ".")
+          from tabella.bootstrap import ensure_venv
+          py = ensure_venv()
+          print("ensure_venv ->", py)
+          assert pathlib.Path(py).exists(), "bootstrap returned a non-existent interpreter"
+          subprocess.run([py, "-c", "import docx, openpyxl, pptx, weasyprint, odf, fitz, anydoc, liteparse"], check=True)
+          print("cold bootstrap ok: every documented dependency imports")
+          PY

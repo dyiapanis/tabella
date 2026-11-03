@@ -18,29 +18,58 @@ from .utils import _get_output_dir, _is_in_output_dir, _resolve_output_dir
 logger = logging.getLogger(__name__)
 
 
+_DATA_MIME_ALLOW = frozenset({
+    "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
+    # fonts are rendered by WeasyPrint's own text stack, not by Pillow
+    "font/woff", "font/woff2", "font/ttf", "font/otf",
+})
+
+
+def _data_mime_allowed(url: str) -> bool:
+    """Only data: URIs of formats whose decoding we can vouch for.
+
+    WeasyPrint hands fetched bytes to a format-agnostic Pillow open, so an
+    `image/*`-shaped data URI carrying EPS/PS reaches Ghostscript (RCE when a
+    gs binary is installed with a -dSAFER bypass). The dependency bump closes
+    the known advisory; this allowlist closes the class at the fetcher, which
+    is the layer we control.
+    """
+    head = url[len("data:"):].split(",", 1)[0]
+    return head.split(";", 1)[0].strip().lower() in _DATA_MIME_ALLOW
+
+
 def _safe_url_fetcher(font_config):
     """URL fetcher for model-supplied HTML: refuse network + host filesystem.
 
-    Only data: URIs and WeasyPrint's own font temp-file references resolve
-    — <img src>, @import and file:// against anything else raise (catalog
-    review finding 2: 'no network' must be true, not a wording promise).
+    Only allowlisted data: URIs and WeasyPrint's own font temp-file references
+    resolve — <img src>, @import and file:// against anything else raise
+    (catalog review finding 2: 'no network' must be true, not a wording
+    promise).
+
+    WeasyPrint 70 removed ``default_url_fetcher``; the supported seam is a
+    ``URLFetcher`` subclass, whose ``fetch`` is what every resource load
+    routes through.
     """
     from pathlib import Path as _P
+    from weasyprint.urls import URLFetcher
 
-    def fetch(url, *a, **kw):
-        tmp_dir = str(getattr(font_config, "tmp_directory", "") or "")
-        if url.startswith("data:") or (
-            url.startswith("file:") and tmp_dir
-            and url[len("file://"):].startswith(_P(tmp_dir).resolve().as_posix())
-        ):
-            from weasyprint import default_url_fetcher as _default
-            return _default(url, *a, **kw)
-        raise ValueError(
-            f"blocked external URL in HTML: {url[:80]!r} — network and "
-            "host-file access are disabled; use embedded data: URIs"
-        )
+    tmp_dir = str(getattr(font_config, "tmp_directory", "") or "")
+    tmp_prefix = _P(tmp_dir).resolve().as_posix() if tmp_dir else ""
 
-    return fetch
+    class Guarded(URLFetcher):
+        def fetch(self, url, *a, **kw):
+            allowed = url.startswith("data:") and _data_mime_allowed(url)
+            if not allowed and tmp_prefix and url.startswith("file:"):
+                allowed = url[len("file:"):].lstrip("/").startswith(tmp_prefix.lstrip("/"))
+            if not allowed:
+                raise ValueError(
+                    f"blocked external URL in HTML: {url[:80]!r} — network and "
+                    "host-file access are disabled; use embedded data: URIs of "
+                    f"an allowed type ({', '.join(sorted(_DATA_MIME_ALLOW))})"
+                )
+            return super().fetch(url, *a, **kw)
+
+    return Guarded()
 
 
 def _css_escape(s: str) -> str:
@@ -334,15 +363,17 @@ def _build_odt(content: dict, output_path: str, template: str = None, options: d
             elif stype == "table":
                 rows = section.get("rows", [])
                 headers = section.get("headers", [])
-                total_rows = len(rows) + (1 if headers else 0)
                 num_cols = max(1, len(headers) or (len(rows[0]) if rows else 1))
                 table = Table()
-                for r in range(total_rows):
+                # Header row then body rows, each cell carrying its value —
+                # an empty grid with success:true is silent data loss.
+                body = ([headers] if headers else []) + list(rows)
+                for row in body:
                     tr = TableRow()
                     for c in range(num_cols):
                         tc = TableCell()
-                        p = P(text="")
-                        tc.addElement(p)
+                        cell = row[c] if c < len(row) else ""
+                        tc.addElement(P(text=str(cell)))
                         tr.addElement(tc)
                     table.addElement(tr)
                 doc.text.addElement(table)
@@ -594,7 +625,7 @@ def create_document(format: str, content, output_path: str, template: str = None
 def _edit_pdf_text(path: str, page: int, instruction: str, output_path: str = None) -> dict:
     """Edit PDF text via pymupdf search-and-replace (no LLM, provider-agnostic)."""
     try:
-        import fitz  # pymupdf
+        import pymupdf as fitz  # PyMuPDF >= 1.24 exposes the canonical name
     except ImportError:
         return {"success": False, "error": "pymupdf not installed."}
 

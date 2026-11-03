@@ -11,7 +11,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-__version__ = "1.0.0"
+from .bootstrap import resolve_venv_python
+
+__version__ = "2.0.3"
 
 # ── Configuration ─────────────────────────────────────────────
 
@@ -21,19 +23,11 @@ def get_docs_venv_python() -> str:
     Resolution order:
     1. DOCS_VENV_PYTHON env var (explicit override)
     2. PLUGIN_DATA/venv/bin/python (v1 client-managed data directory)
-    3. ~/.venvs/docs/bin/python (fallback)
+    3. ~/.venvs/docs/venv/bin/python (fallback)
+
+    Delegates to tabella.bootstrap so the path can only be wrong in one place.
     """
-    explicit = os.environ.get("DOCS_VENV_PYTHON")
-    if explicit and Path(explicit).exists():
-        return explicit
-
-    plugin_data = os.environ.get("PLUGIN_DATA")
-    if plugin_data:
-        p = Path(plugin_data) / "venv" / "bin" / "python"
-        if p.exists():
-            return str(p)
-
-    return str(Path.home() / ".venvs" / "docs" / "bin" / "python")
+    return resolve_venv_python()
 
 
 def get_output_dir() -> Path:
