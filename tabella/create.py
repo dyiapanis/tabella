@@ -31,27 +31,41 @@ def _data_mime_allowed(url: str) -> bool:
     return head.split(";", 1)[0].strip().lower() in _DATA_MIME_ALLOW
 
 
-def _data_payload_head(url: str, n: int = 16) -> bytes:
-    """First bytes of a data: URI payload, for magic-number sniffing."""
+# Pillow's EpsImagePlugin._accept takes either the PostScript text magic or the
+# DOS EPS binary header (little-endian 0xC6D3D0C5, i.e. these bytes).
+_EPS_MAGICS = (b"%!PS", b"\xc5\xd0\xd3\xc6")
+
+
+def _data_payload_head(url: str, n: int = 32) -> bytes:
+    """First bytes of a data: URI payload, decoded the way the consumer decodes it.
+
+    WeasyPrint fetches data: URIs through urllib's DataHandler: it percent-
+    unquotes the payload first, then base64-decodes MIME-tolerantly (whitespace
+    ignored). A sniffer that slices the raw string decodes something else
+    entirely — a newline after character four or a percent-encoded alphabet is
+    enough to make it see b"" while urllib still delivers the real bytes.
+    """
     import base64
     from urllib.parse import unquote_to_bytes
 
     head, _, payload = url[len("data:"):].partition(",")
+    raw = unquote_to_bytes(payload)
     if "base64" in head.lower():
-        # A slice whose length is a multiple of 4 decodes without hand-padding
-        # ("===" is not valid padding and makes b64decode raise, which would
-        # silently turn every base64 data: URI into an empty head).
+        compact = bytes(b for b in raw if b not in b" \t\r\n")
         take = ((n + 2) // 3) * 4
+        chunk = compact[:take]
+        chunk += b"=" * (-len(chunk) % 4)
         try:
-            return base64.b64decode(payload[:take])[:n]
+            return base64.b64decode(chunk)[:n]
         except Exception:
             return b""
-    return unquote_to_bytes(payload[: n * 3])[:n]
+    return raw[:n]
 
 
 def _is_postscript(head: bytes) -> bool:
     """PostScript/EPS magic. Pillow dispatches on bytes, not on the declared MIME."""
-    return head.lstrip()[:4] == b"%!PS"
+    stripped = head.lstrip()
+    return any(stripped.startswith(magic) for magic in _EPS_MAGICS)
 
 
 def _in_tmp_dir(url: str, tmp_root) -> bool:

@@ -95,6 +95,12 @@ def test_fetcher_rejects_non_image_data_uris(evil):
     "data:image/png;base64,JSFQUy1BZG9iZS0zLjAgRVBTRi0zLjA=",
     "data:image/svg+xml;base64,JSFQUw==",
     "data:image/png,%25!PS-Adobe-3.0",  # %25 = a literal "%"
+    # ...and the sniffer must decode exactly the way urllib does, or these
+    # three wrappers smuggle the same bytes past it:
+    "data:image/png;base64,JSFQ\nUy1BZG9iZS0zLjAgRVBTRi0zLjA=",          # whitespace in the base-64
+    "data:image/png;base64,%4A%53%46%51%55%79%31%42%5A%47%39%69",       # percent-encoded base-64
+    "data:image/png;base64,xdDTxg==",          # base-64 of the DOS EPS header \xC5\xD0\xD3\xC6
+    "data:image/png,%C5%D0%D3%C6",            # same bytes, percent-encoded
 ])
 def test_fetcher_rejects_postscript_payload_hidden_in_an_allowed_type(payload):
     fetcher = _safe_url_fetcher(None)
