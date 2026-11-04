@@ -49,6 +49,12 @@ jobs:
       # at import time, so create.py cannot even be imported without them.
       - run: brew install pandoc tesseract pango cairo gdk-pixbuf
 
+      # Homebrew's lib dir is not on the default dyld search path for a
+      # non-Homebrew Python, so WeasyPrint cannot dlopen libgobject-2.0-0 even
+      # though brew installed it (the macOS shape of the Windows
+      # WEASYPRINT_DLL_DIRECTORIES problem).
+      - run: echo "DYLD_FALLBACK_LIBRARY_PATH=$(brew --prefix)/lib" >> "$GITHUB_ENV"
+
       - run: python -m pip install -e '.[all]' pytest
 
       - run: python -m pytest tests/ -q
