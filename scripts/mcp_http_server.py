@@ -17,6 +17,7 @@ Run:  python3 scripts/mcp_http_server.py [--addr 127.0.0.1:8602]
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import os
 import subprocess
@@ -49,13 +50,33 @@ def _resolve_token() -> str:
     return tok
 
 
-TOKEN = _resolve_token()
+# Resolved on first use: importing this module (tests, tooling) must not create
+# a token file as a side effect.
+_TOKEN: str | None = None
+
+
+def _token() -> str:
+    global _TOKEN
+    if _TOKEN is None:
+        _TOKEN = _resolve_token()
+    return _TOKEN
+
+
+# Largest request body accepted before rfile.read(n). Tool arguments are small
+# documents; anything near this is a mistake or an attempt to make us allocate.
+MAX_BODY_BYTES = 4 * 1024 * 1024
 
 # ── Bootstrap: ensure docs venv exists before serving ───────────────────────
 # shared with the stdio server (mcp_server.py) — one implementation
 from tabella.bootstrap import ensure_venv
 from tabella import __version__
-from tabella.toolspec import PROTOCOL_VERSION, SUPPORTED_PROTOCOLS, TOOLS, handle_tool
+from tabella.toolspec import (
+    PROTOCOL_VERSION,
+    SUPPORTED_PROTOCOLS,
+    TOOLS,
+    UnknownToolError,
+    handle_tool,
+)
 
 PROTOCOL = PROTOCOL_VERSION  # one constant, shared with the stdio server
 
@@ -70,9 +91,11 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def _auth(self) -> bool:
-        if not TOKEN:
+        token = _token()
+        if not token:
             return True
-        return self.headers.get("Authorization", "") == f"Bearer {TOKEN}"
+        presented = self.headers.get("Authorization", "").encode()
+        return hmac.compare_digest(presented, f"Bearer {token}".encode())
 
     def _sse(self, payload: dict, sid: str | None):
         body = "event: message\ndata: " + json.dumps(payload) + "\n\n"
@@ -119,6 +142,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             n = int(self.headers.get("Content-Length", 0))
+            if n > MAX_BODY_BYTES:
+                self._json({"jsonrpc": "2.0", "error": {"code": -32600,
+                            "message": f"request body exceeds {MAX_BODY_BYTES} bytes"}}, 413)
+                return
             msg = json.loads(self.rfile.read(n) or b"{}")
         except (ValueError, json.JSONDecodeError):
             self._json({"jsonrpc": "2.0", "error": {"code": -32700, "message": "bad json"}}, 400)
@@ -145,7 +172,12 @@ class Handler(BaseHTTPRequestHandler):
             elif method == "tools/call":
                 name = msg["params"]["name"]
                 args = msg["params"].get("arguments") or {}
-                out = handle_tool(name, args)  # already a JSON string
+                try:
+                    out = handle_tool(name, args)  # already a JSON string
+                except UnknownToolError as exc:
+                    self._json({"jsonrpc": "2.0", "id": mid,
+                                "error": {"code": -32602, "message": str(exc)}}, sid=sid)
+                    return
                 res = {"content": [{"type": "text", "text": out}]}
             elif method == "ping":
                 res = {}
@@ -181,7 +213,7 @@ def main() -> None:
     httpd = ThreadingHTTPServer((host, int(port)), Handler)
     httpd.daemon_threads = True
     print(f"tabella-mcp-http on http://{host}:{port}/mcp "
-          f"(auth={'token' if TOKEN else 'keyless-loopback'})", flush=True)
+          f"(auth={'token' if _token() else 'keyless-loopback'})", flush=True)
     httpd.serve_forever()
 
 

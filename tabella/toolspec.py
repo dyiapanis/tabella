@@ -168,8 +168,20 @@ TOOLS = [
 
 # ── Dispatch ────────────────────────────────────────────────
 
+class UnknownToolError(LookupError):
+    """A tool name that is not in TOOLS.
+
+    Distinct from a tool failure: this is JSON-RPC -32602 (invalid params), the
+    caller passed a name that does not exist. Returning {"success": false} in a
+    successful envelope — what this used to do — is the same shape that let the
+    ODT bug hide behind a green result.
+    """
+
+
 def handle_tool(name: str, args: dict) -> str:
     """Dispatch a tool call to the appropriate handler and return JSON result."""
+    if name not in {tool["name"] for tool in TOOLS}:
+        raise UnknownToolError(f"unknown tool: {name}")
     try:
         if name == "doc_read":
             from tabella.read import read
@@ -230,9 +242,6 @@ def handle_tool(name: str, args: dict) -> str:
                 output_path=args.get("output_path"),
             )
             return json.dumps(result)
-
-        else:
-            return json.dumps({"success": False, "error": f"Unknown tool: {name}"})
 
     except Exception as e:
         return json.dumps({"success": False, "error": f"{type(e).__name__}: {e}"})
