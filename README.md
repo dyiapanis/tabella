@@ -192,6 +192,14 @@ sudo apt install libcairo2 libpango-1.0-0 libgdk-pixbuf-2.0-0
 brew install cairo pango gdk-pixbuf
 ```
 
+If your Python is not Homebrew's (python.org, pyenv), WeasyPrint cannot find
+those libraries by name — put the directory on the loader path before
+importing it:
+
+```bash
+export DYLD_FALLBACK_LIBRARY_PATH="$(brew --prefix)/lib:$DYLD_FALLBACK_LIBRARY_PATH"
+```
+
 ### Windows
 
 tabella runs natively on Windows 10/11 (64-bit, Python 3.11+); all five MCP
