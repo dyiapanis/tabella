@@ -28,9 +28,24 @@ from typing import Any
 # shared with the HTTP server (scripts/mcp_http_server.py) — one implementation
 from tabella.bootstrap import ensure_venv
 from tabella import __version__
-from tabella.toolspec import PROTOCOL_VERSION, SUPPORTED_PROTOCOLS, TOOLS, handle_tool
+from tabella.toolspec import (
+    PROTOCOL_VERSION,
+    SUPPORTED_PROTOCOLS,
+    TOOLS,
+    UnknownToolError,
+    handle_tool,
+)
 
 # ── MCP protocol ─────────────────────────────────────────────────────────────
+
+class FramingError(Exception):
+    """The bytes on stdin were not a readable message.
+
+    Distinct from EOF: main() answers this with a -32700 and keeps serving.
+    Returning None for it (what this used to do) exited the server, so one
+    malformed header ended every later tool call in the session.
+    """
+
 
 def _read_message() -> dict | None:
     """Read one JSON-RPC message from stdin.
@@ -48,14 +63,18 @@ def _read_message() -> dict | None:
         if not stripped:
             continue
         if ":" in stripped and stripped.lower().startswith("content-length:"):
-            headers["content-length"] = int(stripped.split(":", 1)[1].strip())
+            raw = stripped.split(":", 1)[1].strip()
+            try:
+                headers["content-length"] = int(raw)
+            except ValueError as exc:
+                raise FramingError(f"invalid Content-Length header: {raw!r}") from exc
             continue
         # Newline-delimited JSON (MCP stdio spec framing)
         try:
             return json.loads(stripped)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
             if headers.get("content-length"):
-                return None
+                raise FramingError("Content-Length header without a JSON body") from exc
             continue  # tolerate stray blank/garbage lines
 
 
@@ -100,7 +119,10 @@ def _handle_request(msg: dict) -> dict | None:
     elif method == "tools/call":
         tool_name = params.get("name")
         tool_args = params.get("arguments", {})
-        result_str = handle_tool(tool_name, tool_args)
+        try:
+            result_str = handle_tool(tool_name, tool_args)
+        except UnknownToolError as exc:
+            return _error(req_id, -32602, str(exc))
         return _result(req_id, {
             "content": [{"type": "text", "text": result_str}],
         })
@@ -127,7 +149,11 @@ def main():
             os.execv(venv_python, [venv_python] + sys.argv)
 
     while True:
-        msg = _read_message()
+        try:
+            msg = _read_message()
+        except FramingError as exc:
+            _write_message(_error(None, -32700, f"Parse error: {exc}"))
+            continue
         if msg is None:
             break
         response = _handle_request(msg)
