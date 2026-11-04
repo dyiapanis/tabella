@@ -32,6 +32,27 @@ jobs:
 
       - run: python -m pytest tests/ -q
 
+  pytest-macos:
+    # The macOS claim. The README documents brew installs for pandoc and the
+    # WeasyPrint stack, so this lane is what makes that advice earned rather
+    # than aspirational — the catalog entry only gains `macos` if this is green.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Same three system packages the README tells a macOS user to install.
+      # pango/cairo are not preinstalled on the runner and WeasyPrint loads them
+      # at import time, so create.py cannot even be imported without them.
+      - run: brew install pandoc tesseract pango cairo gdk-pixbuf
+
+      - run: python -m pip install -e '.[all]' pytest
+
+      - run: python -m pytest tests/ -q
+
   bootstrap:
     # Cold-start lane: no PLUGIN_DATA, empty HOME — the documented fallback
     # path, and the one where 2.0.2 handed back an interpreter that did not
