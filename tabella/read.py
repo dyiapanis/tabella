@@ -68,18 +68,26 @@ def _run_liteparse(path: str, extract_images: bool = True, timeout: int = 120) -
 # ── Plain text fast path ─────────────────────────────────────────────────────
 
 def _read_text(path: str, max_chars: Optional[int] = None) -> str:
-    encodings = ["utf-8", "utf-8-sig", "latin-1"]
-    last_err = None
-    for enc in encodings:
+    """Read a text file, or refuse it as binary.
+
+    The old version looped over encodings with errors="replace", which never
+    raises — so the loop only ever ran once, and a binary file came back as a
+    page of U+FFFD instead of an error. Decode the bytes and say what happened
+    instead: UTF-8 (BOM tolerated), then cp1252 for the Windows-era latin-1
+    case, and a NUL byte means it was never text.
+    """
+    data = Path(path).read_bytes()
+    if b"\x00" in data[:8192]:
+        raise RuntimeError(f"{path} looks binary (NUL bytes) — not a text file")
+    for enc in ("utf-8-sig", "cp1252"):
         try:
-            with open(path, "r", encoding=enc, errors="replace") as f:
-                text = f.read()
-                if max_chars:
-                    text = text[:max_chars]
-                return text
-        except Exception as e:
-            last_err = e
-    raise RuntimeError(f"Could not read text file: {last_err}")
+            text = data.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        raise RuntimeError(f"{path} is not UTF-8 or Windows-1252 text")
+    return text[:max_chars] if max_chars else text
 
 
 # ── Main dispatch ────────────────────────────────────────────────────────────

@@ -206,6 +206,7 @@ def _infer_format(ext: str) -> str:
         "tex": "latex",
         "rst": "rst",
         "epub": "epub",
+        "typ": "typst",   # pandoc reads and writes Typst
     }
     return mapping.get(ext, ext)
 

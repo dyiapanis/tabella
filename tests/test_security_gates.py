@@ -159,8 +159,8 @@ def test_token_env_takes_precedence(monkeypatch):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
     try:
         mod = importlib.import_module("mcp_http_server")
-        importlib.reload(mod)  # bind TOKEN under this env
-        assert mod.TOKEN == "env-token-for-test"
+        importlib.reload(mod)
+        assert mod._token() == "env-token-for-test"
     finally:
         sys.modules.pop("mcp_http_server", None)
         sys.path.remove(str(Path(__file__).resolve().parent.parent / "scripts"))
@@ -173,16 +173,18 @@ def test_token_generates_persisted_token_0600(monkeypatch, tmp_path):
     try:
         sys.modules.pop("mcp_http_server", None)
         mod = importlib.import_module("mcp_http_server")
-        assert mod.TOKEN  # generated at import in the tmp data dir
+        assert not (tmp_path / "http.token").exists(), "import must not mint a token"
+        token = mod._token()  # first use generates it, in the tmp data dir
+        assert token
         tok_file = tmp_path / "http.token"
         assert tok_file.exists()
-        assert tok_file.read_text().strip() == mod.TOKEN
+        assert tok_file.read_text().strip() == token
         if os.name == "posix":  # windows has no posix mode bits
             assert tok_file.stat().st_mode & 0o777 == 0o600
         # a second import (no reload of a live module) must reuse the file
         sys.modules.pop("mcp_http_server", None)
         mod2 = importlib.import_module("mcp_http_server")
-        assert mod2.TOKEN == mod.TOKEN
+        assert mod2._token() == token
     finally:
         sys.modules.pop("mcp_http_server", None)
         sys.path.remove(str(Path(__file__).resolve().parent.parent / "scripts"))

@@ -62,15 +62,12 @@ def get_docs_venv_python() -> str:
 def get_output_dir() -> Path:
     """Default output directory for generated documents.
 
-    Override with DOCS_OUTPUT_DIR env var. Defaults to ~/Documents.
+    Delegates to tabella.utils so the DOCS_OUTPUT_DIR rule lives in one place
+    (utils owns it; this name is the public one).
     """
-    d = os.environ.get("DOCS_OUTPUT_DIR")
-    if d:
-        p = Path(d).expanduser()
-    else:
-        p = Path.home() / "Documents"
-    p.mkdir(parents=True, exist_ok=True)
-    return p
+    from .utils import _get_output_dir
+
+    return _get_output_dir()
 
 
 __all__ = ["get_docs_venv_python", "get_output_dir"]
