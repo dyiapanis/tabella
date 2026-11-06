@@ -1,3 +1,5 @@
+![tabella](docs/banner.png)
+
 # tabella
 
 A portable document lifecycle suite: create, convert, and read documents

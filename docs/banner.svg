@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="560" viewBox="0 0 1280 560" role="img" aria-label="tabella — read, create, convert">
+  <title>tabella — a document lifecycle suite for agents</title>
+  <defs>
+    <clipPath id="plate">
+      <rect x="0" y="0" width="1280" height="560" rx="16" ry="16"/>
+    </clipPath>
+    <radialGradient id="glow" cx="0.28" cy="0.06" r="1.0">
+      <stop offset="0" stop-color="#33456A" stop-opacity="0.52"/>
+      <stop offset="0.50" stop-color="#1C2637" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#0A0C10" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g clip-path="url(#plate)">
+    <rect width="1280" height="560" fill="#0A0C10"/>
+    <rect width="1280" height="560" fill="url(#glow)"/>
+
+    <!-- table fragment: merged title cell + one data row -->
+    <rect x="0" y="52" width="1280" height="328" fill="#FFFFFF" fill-opacity="0.02"/>
+    <path d="M0 380.5H1280" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="1"/>
+    <path d="M426.5 380.5V510.5" stroke="#FFFFFF" stroke-opacity="0.13" stroke-width="1"/>
+    <path d="M853.5 380.5V510.5" stroke="#E3A94F" stroke-opacity="0.38" stroke-width="1"/>
+    <path d="M0 510.5H1280" stroke="#FFFFFF" stroke-opacity="0.13" stroke-width="1"/>
+
+    <text x="644" y="318" text-anchor="middle"
+          font-family="Lato, 'Lato Black', sans-serif" font-weight="900"
+          font-size="212" letter-spacing="-8.5" fill="#F7F8FA">tabella</text>
+
+    <g font-family="Lato, sans-serif" font-weight="700" font-size="30"
+       letter-spacing="8" text-anchor="middle">
+      <text x="217" y="452" fill="#D1DAE8">READ</text>
+      <text x="644" y="452" fill="#D1DAE8">CREATE</text>
+      <text x="1071" y="452" fill="#E3A94F">CONVERT</text>
+    </g>
+  </g>
+</svg>
