@@ -1,3 +1,5 @@
+![tabella](https://raw.githubusercontent.com/dyiapanis/tabella/4b0633eec4f49dbd4fd02a6215d7d8fc463e2ed3/docs/banner.jpg)
+
 # tabella
 
 A portable document lifecycle suite: create, convert, and read documents
