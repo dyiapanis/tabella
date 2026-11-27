@@ -1,6 +1,19 @@
-![tabella](https://raw.githubusercontent.com/dyiapanis/tabella/4b0633eec4f49dbd4fd02a6215d7d8fc463e2ed3/docs/banner.jpg)
+![Tabella — portable document lifecycle suite](docs/banner.jpg)
 
-# tabella
+<h2 align="center">Tabella</h2>
+
+<p align="center"><strong>Portable document lifecycle suite — create, convert and read documents from structured JSON or raw HTML/CSS</strong></p>
+
+<p align="center">
+  <a href="https://github.com/dyiapanis/tabella/actions/workflows/tests.yml"><img src="https://github.com/dyiapanis/tabella/actions/workflows/tests.yml/badge.svg" alt="tests" valign="middle"></a>&nbsp;
+  <a href="https://github.com/dyiapanis/tabella/blob/main/LICENSE"><img src="https://img.shields.io/github/license/dyiapanis/tabella" alt="license" valign="middle"></a>&nbsp;
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="python" valign="middle"></a>&nbsp;
+  <a href="https://github.com/dyiapanis/tabella/actions/workflows/tests.yml"><img src="https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20Windows-informational" alt="platforms" valign="middle"></a>&nbsp;
+  <a href="https://agent-plugins.org/"><img src="https://img.shields.io/badge/agent--plugins-1.0%20compatible-8A2BE2" alt="agent plugins" valign="middle"></a>&nbsp;
+  <a href="https://hermes-agent.nousresearch.com/marketplace/tabella"><img src="https://img.shields.io/badge/hermes-plugin%20marketplace-8A2BE2" alt="hermes" valign="middle"></a>
+</p>
+
+---
 
 A portable document lifecycle suite: create, convert, and read documents
 from structured JSON or raw HTML/CSS.
