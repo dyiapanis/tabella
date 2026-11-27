@@ -2,7 +2,7 @@
 
 <h2 align="center">Tabella</h2>
 
-<p align="center"><strong>Portable document lifecycle suite — create, convert and read documents from structured JSON or raw HTML/CSS</strong></p>
+<p align="center"><strong>Agent tools to create, convert and read documents in popular formats</strong></p>
 
 <p align="center">
   <a href="https://github.com/dyiapanis/tabella/actions/workflows/tests.yml"><img src="https://github.com/dyiapanis/tabella/actions/workflows/tests.yml/badge.svg" alt="tests" valign="middle"></a>&nbsp;
@@ -15,10 +15,7 @@
 
 ---
 
-A portable document lifecycle suite: create, convert, and read documents
-from structured JSON or raw HTML/CSS.
-
-## Cross-Platform Compatibility
+## Quick Start
 
 This package conforms to the [Agent Plugins v1.0.0](https://agent-plugins.org/specification)
 specification. It works with any compatible AI agent client that supports
